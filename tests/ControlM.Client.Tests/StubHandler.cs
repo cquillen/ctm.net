@@ -3,7 +3,11 @@ using System.Text;
 
 namespace ControlM.Client.Tests;
 
-internal sealed record RecordedRequest(HttpMethod Method, Uri Uri, string? Body);
+internal sealed record RecordedRequest(
+    HttpMethod Method,
+    Uri Uri,
+    string? Body,
+    IReadOnlyDictionary<string, IEnumerable<string>> Headers);
 
 internal sealed class StubHandler(HttpStatusCode status, string responseBody) : HttpMessageHandler
 {
@@ -14,7 +18,8 @@ internal sealed class StubHandler(HttpStatusCode status, string responseBody) : 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         string? body = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
-        Requests.Add(new RecordedRequest(request.Method, request.RequestUri!, body));
+        var headers = request.Headers.ToDictionary(h => h.Key, h => h.Value, StringComparer.OrdinalIgnoreCase);
+        Requests.Add(new RecordedRequest(request.Method, request.RequestUri!, body, headers));
         return new HttpResponseMessage(status)
         {
             Content = new StringContent(responseBody, Encoding.UTF8, "application/json"),
