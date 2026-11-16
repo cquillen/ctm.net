@@ -37,8 +37,7 @@ public sealed class CredentialStore
     public void AddUser(string username, string password) => _users[username] = password;
 
     /// <summary>
-    /// Ends every live session, as if each had gone unused for its whole lifetime. Each token is refused from then on,
-    /// and a session client logs in again on its next call.
+    /// Ends every live session, as if each had gone unused for its whole lifetime. Each token is refused from then on.
     /// </summary>
     public void ExpireSessions() => _sessions.Clear();
 

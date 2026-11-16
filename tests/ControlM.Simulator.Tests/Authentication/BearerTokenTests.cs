@@ -39,9 +39,7 @@ public sealed class BearerTokenTests
 
         using var response = await GetServersWithTokenAsync(http, "SIMTOKEN2");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
-        (await response.Content.ReadAsStringAsync()).ShouldEqualJson(
-            JsonFixture.Load("Authentication", "ApiKey", "GetServers.invalid-bearer-token.json"));
+        await ShouldBeInvalidTokenAsync(response);
     }
 
     [Test]
@@ -86,9 +84,7 @@ public sealed class BearerTokenTests
         time.Advance(s_lifetime);
         using var response = await GetServersWithTokenAsync(http, "SIMTOKEN1");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
-        (await response.Content.ReadAsStringAsync()).ShouldEqualJson(
-            JsonFixture.Load("Authentication", "ApiKey", "GetServers.invalid-bearer-token.json"));
+        await ShouldBeInvalidTokenAsync(response);
     }
 
     [Test]
