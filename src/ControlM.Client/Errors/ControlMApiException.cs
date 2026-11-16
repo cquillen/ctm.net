@@ -1,4 +1,5 @@
 using System.Net;
+using ControlM.Client.Operations;
 
 namespace ControlM.Client.Errors;
 
@@ -37,4 +38,20 @@ public class ControlMApiException : Exception
     /// <see langword="null"/>.
     /// </summary>
     public string? ResponseBody { get; }
+
+    /// <summary>
+    /// The HTTP method of the failed call.
+    /// </summary>
+    public HttpMethod Method => throw new NotImplementedException();
+
+    /// <summary>
+    /// The path of the failed call as the caller gave it, relative to the endpoint and with its query string.
+    /// </summary>
+    public string Path => throw new NotImplementedException();
+
+    /// <summary>
+    /// The operation of the failed call when it was made through a typed member; <see langword="null"/> when it was
+    /// made through <see cref="IControlMClient.SendAsync"/>.
+    /// </summary>
+    public Operation? Operation { get; }
 }
