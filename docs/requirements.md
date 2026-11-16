@@ -22,6 +22,8 @@ The simulator has two audiences: automated tests (in-process, deterministic, par
 
 Third-party dependencies: TUnit and Shouldly, in the test projects only. Everything else comes from the .NET base libraries and Microsoft's own packages.
 
+`Microsoft.Extensions.TimeProvider.Testing` (MIT), in `ControlM.Simulator.Tests` only, supplies the `FakeTimeProvider` through which those tests move the simulator's clock.
+
 One further dependency is expected and not yet chosen. Validating live responses against a spec schema (section 6, `--live`) needs a JSON Schema validator, which the base libraries do not have. The change that implements `--live` names the package here, with its license and the reason.
 
 Structural rules:

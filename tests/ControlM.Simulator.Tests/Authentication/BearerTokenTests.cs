@@ -3,7 +3,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using ControlM.Fixtures;
 using ControlM.Simulator.Hosting;
-using ControlM.Simulator.Tests.Time;
+using Microsoft.Extensions.Time.Testing;
 using Shouldly;
 
 namespace ControlM.Simulator.Tests.Authentication;
