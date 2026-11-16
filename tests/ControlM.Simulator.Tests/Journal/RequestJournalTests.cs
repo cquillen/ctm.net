@@ -99,4 +99,16 @@ public sealed class RequestJournalTests
 
         simulator.Journal.Entries.Count.ShouldBe(requests);
     }
+
+    [Test]
+    public async Task The_session_operations_are_recorded_with_their_operations()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        using var http = simulator.CreateHttpClient();
+
+        using var login = await http.PostAsync(new Uri("/automation-api/session/login", UriKind.Relative), null);
+        using var logout = await http.PostAsync(new Uri("/automation-api/session/logout", UriKind.Relative), null);
+
+        simulator.Journal.Entries.Select(entry => entry.Operation).ShouldBe([Operation.Login, Operation.Logout]);
+    }
 }
