@@ -25,8 +25,9 @@ internal static class Program
         var password = ReadPassword("Password: ");
         Console.WriteLine();
 
-        var outcome = await CheckAsync(endpoint, username, password);
-        if (outcome == Outcome.NoSession)
+        var session = new SessionWatch();
+        var passed = await CheckAsync(endpoint, username, password, session);
+        if (!session.Opened)
         {
             Report("SKIP", "logout", "no session was opened");
             return 1;
@@ -34,25 +35,17 @@ internal static class Program
 
         // The client swallows every failure of the logout it sends on disposal, so there is no failure to report.
         Report("PASS", "logout", "the service provider was disposed");
-        return outcome == Outcome.Passed ? 0 : 1;
+        return passed ? 0 : 1;
     }
 
-    private enum Outcome
-    {
-        NoSession,
-        Failed,
-        Passed,
-    }
-
-    // Disposing the provider logs out when a session was opened.
-    private static async Task<Outcome> CheckAsync(Uri endpoint, string username, string password)
+    private static async Task<bool> CheckAsync(Uri endpoint, string username, string password, SessionWatch session)
     {
         var services = new ServiceCollection();
         services.AddControlMClient(o =>
         {
             o.Endpoint = endpoint;
             o.UseSessionLogin(username, password);
-        });
+        }).AddHttpMessageHandler(session.CreateHandler);
         await using var provider = services.BuildServiceProvider();
 
         IControlMClient client;
@@ -63,13 +56,13 @@ internal static class Program
         catch (OptionsValidationException exception)
         {
             Report("FAIL", "configure", exception.Message);
-            return Outcome.NoSession;
+            return false;
         }
 
         return await GetServersAsync(client);
     }
 
-    private static async Task<Outcome> GetServersAsync(IControlMClient client)
+    private static async Task<bool> GetServersAsync(IControlMClient client)
     {
         try
         {
@@ -81,36 +74,36 @@ internal static class Program
         {
             Report("FAIL", "login", Describe(exception));
             Report("SKIP", _getServersStep, "not reached");
-            return Outcome.NoSession;
+            return false;
         }
         catch (ControlMApiException exception)
         {
             Report("PASS", "login");
             Report("FAIL", _getServersStep, Describe(exception));
-            return Outcome.Failed;
+            return false;
         }
         catch (HttpRequestException exception)
         {
             Report("FAIL", $"login or {_getServersStep}", $"no response: {exception.HttpRequestError}");
-            return Outcome.Failed;
+            return false;
         }
         catch (TaskCanceledException)
         {
             Report("FAIL", $"login or {_getServersStep}", "no response: timed out");
-            return Outcome.Failed;
+            return false;
         }
     }
 
-    private static Outcome ReportServers(JsonElement servers)
+    private static bool ReportServers(JsonElement servers)
     {
         if (servers.ValueKind != JsonValueKind.Array)
         {
             Report("FAIL", _getServersStep, $"the response is a JSON {servers.ValueKind}, not an array");
-            return Outcome.Failed;
+            return false;
         }
 
         Report("PASS", _getServersStep, $"{servers.GetArrayLength()} servers");
-        return Outcome.Passed;
+        return true;
     }
 
     private static string Describe(ControlMApiException exception)
@@ -159,5 +152,31 @@ internal static class Program
 
         Console.WriteLine();
         return password.ToString();
+    }
+
+    // The client opens its session inside its first call, so only the login response itself shows whether one opened.
+    private sealed class SessionWatch
+    {
+        public bool Opened { get; private set; }
+
+        public DelegatingHandler CreateHandler() => new Watcher(this);
+
+        private sealed class Watcher(SessionWatch session) : DelegatingHandler
+        {
+            protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                var response = await base.SendAsync(request, cancellationToken);
+                if (IsLogin(request) && response.IsSuccessStatusCode)
+                {
+                    session.Opened = true;
+                }
+
+                return response;
+            }
+
+            private static bool IsLogin(HttpRequestMessage request) =>
+                request.Method == Operation.Login.Method
+                && request.RequestUri?.AbsolutePath.EndsWith(Operation.Login.Path, StringComparison.Ordinal) == true;
+        }
     }
 }
