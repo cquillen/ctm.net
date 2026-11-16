@@ -149,6 +149,33 @@ public sealed class SessionLoginTests
         slowCalls.Select(r => r.Headers["Authorization"].Single()).ShouldBe(["Bearer SIMTOKEN1", "Bearer SIMTOKEN2"]);
     }
 
+    [Test]
+    [Timeout(10_000)]
+    public async Task Calls_answered_401_together_share_one_login(CancellationToken testTimeout)
+    {
+        var stub = StubHandler.Returning(HttpStatusCode.OK, "[]")
+            .AnsweringInTurn(_loginPath, (HttpStatusCode.OK, LoginSuccess), (HttpStatusCode.OK, SecondLoginSuccess))
+            .AnsweringInTurn(
+                _serversPath,
+                (HttpStatusCode.OK, "[]"),
+                (HttpStatusCode.Unauthorized, InvalidToken),
+                (HttpStatusCode.Unauthorized, InvalidToken),
+                (HttpStatusCode.OK, "[]"));
+        var hanging = new HangingHandler(stub);
+        var client = TestClient.CreateWithSessionLogin(hanging);
+        await client.SendAsync(HttpMethod.Get, "/config/servers", cancellationToken: testTimeout);
+        hanging.Hold(_loginPath);
+
+        var first = client.SendAsync(HttpMethod.Get, "/config/servers", cancellationToken: testTimeout);
+        var second = client.SendAsync(HttpMethod.Get, "/config/servers", cancellationToken: testTimeout);
+        await hanging.Entered.WaitAsync(testTimeout);
+        hanging.Release();
+        await Task.WhenAll(first, second);
+
+        stub.Requests.Count(r => r.Uri.AbsolutePath == _loginPath).ShouldBe(2);
+        stub.Requests[^2..].Select(r => r.Headers["Authorization"].Single()).ShouldBe(["Bearer SIMTOKEN2", "Bearer SIMTOKEN2"]);
+    }
+
     private static string LoginSuccess => LoginFixture("Login.success.json");
 
     private static string SecondLoginSuccess => LoginSuccess.Replace("SIMTOKEN1", "SIMTOKEN2", StringComparison.Ordinal);
