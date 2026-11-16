@@ -4,6 +4,9 @@
     <PackageReference Include="Microsoft.AspNetCore.TestHost" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="ControlM.Simulator.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\ControlM.Client\ControlM.Client.csproj" />
   </ItemGroup>
 </Project>
