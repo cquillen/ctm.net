@@ -78,4 +78,17 @@ public sealed class RequestContentTests
 
         simulator.Journal.Entries.ShouldHaveSingleItem().Body.ShouldBeEmpty();
     }
+
+    [Test]
+    public async Task A_byte_that_is_not_utf8_is_kept_as_the_replacement_character()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        using var http = simulator.CreateHttpClient();
+
+        using var response = await http.PostAsync(
+            new Uri("/automation-api/no/such/path", UriKind.Relative),
+            new ByteArrayContent([0x41, 0xFF, 0x42]));
+
+        simulator.Journal.Entries.ShouldHaveSingleItem().Body.ShouldBe("A�B");
+    }
 }
