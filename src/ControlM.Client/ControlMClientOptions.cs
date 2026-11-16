@@ -29,7 +29,9 @@ public sealed class ControlMClientOptions
     /// Authenticates with session login: the client logs in with the user name and password on its first request, and
     /// sends the token it receives as <c>Authorization: Bearer</c>. A user name or password that is
     /// <see langword="null"/>, empty or whitespace fails when the client is first resolved, as does choosing
-    /// <see cref="UseApiKey"/> as well.
+    /// <see cref="UseApiKey"/> as well. To log out, dispose the service provider with <c>DisposeAsync</c>, as the
+    /// Generic Host, ASP.NET Core and <c>await using</c> do. A synchronous <c>Dispose</c> does not log out: the session
+    /// stays open until the server's idle timeout expires it.
     /// </summary>
     /// <param name="username">The Control-M user name.</param>
     /// <param name="password">The user's password.</param>

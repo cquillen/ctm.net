@@ -13,13 +13,15 @@ internal sealed class SessionLoginScheme(
     LoginCredentials credentials,
     Uri endpoint,
     IHttpClientFactory httpClientFactory,
-    string httpClientName) : ICredentialScheme, IAsyncDisposable
+    string httpClientName) : ICredentialScheme, IAsyncDisposable, IDisposable
 {
     public const string AuthenticationScheme = "Bearer";
 
     private readonly SemaphoreSlim _login = new(1, 1);
 
     private volatile string? _token;
+
+    private int _disposed;
 
     public async ValueTask ApplyAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
@@ -36,6 +38,11 @@ internal sealed class SessionLoginScheme(
     // Taking the lock lets a login still in flight finish, so its session is the one logged out.
     public async ValueTask DisposeAsync()
     {
+        if (!TryBeginDisposal())
+        {
+            return;
+        }
+
         try
         {
             await _login.WaitAsync();
@@ -53,6 +60,21 @@ internal sealed class SessionLoginScheme(
             _login.Dispose();
         }
     }
+
+    // A synchronous disposal cannot log out without blocking, so it leaves the session for the server to expire
+    // (docs/requirements.md section 3.4). A login still in flight holds the lock and releases it later, so the lock is
+    // then left undisposed rather than make that release throw; its wait handle is never created, so nothing leaks.
+    public void Dispose()
+    {
+        if (!TryBeginDisposal() || !_login.Wait(0))
+        {
+            return;
+        }
+
+        _login.Dispose();
+    }
+
+    private bool TryBeginDisposal() => Interlocked.Exchange(ref _disposed, 1) == 0;
 
     // Callers that wait here while another logs in find that login's token, and so share it.
     private async Task<string> ObtainTokenAsync(string? refusedToken, CancellationToken cancellationToken)
