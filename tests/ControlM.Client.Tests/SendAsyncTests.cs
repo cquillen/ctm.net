@@ -89,6 +89,29 @@ public sealed class SendAsyncTests
         request.Body.ShouldNotBeNull();
     }
 
+    [Test]
+    [Arguments(null, "/sample/path", true)]
+    [Arguments("GET", null, true)]
+    [Arguments("GET", "", true)]
+    [Arguments("GET", " ", true)]
+    [Arguments(null, "/sample/path", false)]
+    [Arguments("GET", null, false)]
+    [Arguments("GET", "", false)]
+    [Arguments("GET", " ", false)]
+    public async Task A_missing_method_or_path_is_rejected_before_anything_is_sent(string? method, string? path, bool withResult)
+    {
+        var stub = StubHandler.Returning(HttpStatusCode.OK, "{}");
+        var client = TestClient.Create(stub);
+        var httpMethod = method is null ? null : new HttpMethod(method);
+
+        Func<Task> send = withResult
+            ? () => client.SendAsync<JsonElement>(httpMethod!, path!)
+            : () => client.SendAsync(httpMethod!, path!);
+
+        await Should.ThrowAsync<ArgumentException>(send);
+        stub.Requests.ShouldBeEmpty();
+    }
+
     internal sealed record SampleServer(string Name, string State);
 
     internal sealed record SampleRequest(string FolderName, int RetryCount, string? Description);
