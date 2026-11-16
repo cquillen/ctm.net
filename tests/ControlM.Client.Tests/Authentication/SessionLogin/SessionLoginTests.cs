@@ -165,10 +165,12 @@ public sealed class SessionLoginTests
         var client = TestClient.CreateWithSessionLogin(hanging);
         await client.SendAsync(HttpMethod.Get, "/config/servers", cancellationToken: testTimeout);
         hanging.Hold(_loginPath);
+        var refusals = hanging.CountAnswers(_serversPath, 2);
 
         var first = client.SendAsync(HttpMethod.Get, "/config/servers", cancellationToken: testTimeout);
         var second = client.SendAsync(HttpMethod.Get, "/config/servers", cancellationToken: testTimeout);
         await hanging.Entered.WaitAsync(testTimeout);
+        await refusals.WaitAsync(testTimeout);
         hanging.Release();
         await Task.WhenAll(first, second);
 
