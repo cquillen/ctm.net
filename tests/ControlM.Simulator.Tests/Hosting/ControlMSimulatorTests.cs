@@ -28,4 +28,22 @@ public sealed class ControlMSimulatorTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
+
+    [Test]
+    public async Task Disposing_the_simulator_disposes_the_service_provider_of_every_client()
+    {
+        using var events = new ServiceProviderEvents();
+        var simulator = await ControlMSimulator.StartAsync();
+        var providers = events.ProvidersBuiltBy(() =>
+        {
+            simulator.CreateClient();
+            simulator.CreateClient();
+        });
+        providers.Count.ShouldBe(2);
+        providers.ShouldAllBe(p => !events.SawDisposed(p));
+
+        await simulator.DisposeAsync();
+
+        providers.ShouldAllBe(p => events.SawDisposed(p));
+    }
 }
