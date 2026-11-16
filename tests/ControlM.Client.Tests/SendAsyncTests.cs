@@ -112,6 +112,25 @@ public sealed class SendAsyncTests
         stub.Requests.ShouldBeEmpty();
     }
 
+    [Test]
+    [Timeout(10_000)]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task Cancelling_the_token_cancels_a_request_in_flight(bool withResult, CancellationToken testTimeout)
+    {
+        var handler = new HangingHandler();
+        var client = TestClient.Create(handler);
+        using var cancellation = new CancellationTokenSource();
+
+        var send = withResult
+            ? client.SendAsync<JsonElement>(HttpMethod.Get, "/sample/path", cancellationToken: cancellation.Token)
+            : client.SendAsync(HttpMethod.Get, "/sample/path", cancellationToken: cancellation.Token);
+        await handler.Entered.WaitAsync(testTimeout);
+        await cancellation.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(send);
+    }
+
     internal sealed record SampleServer(string Name, string State);
 
     internal sealed record SampleRequest(string FolderName, int RetryCount, string? Description);
