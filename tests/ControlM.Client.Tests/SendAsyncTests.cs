@@ -20,6 +20,21 @@ public sealed class SendAsyncTests
     }
 
     [Test]
+    [Arguments("https://host1.test:8443/automation-api", "/sample/path")]
+    [Arguments("https://host1.test:8443/automation-api/", "/sample/path")]
+    [Arguments("https://host1.test:8443/automation-api", "sample/path")]
+    [Arguments("https://host1.test:8443/automation-api/", "sample/path")]
+    public async Task Slashes_between_the_endpoint_and_the_path_do_not_change_the_url(string endpoint, string path)
+    {
+        var stub = StubHandler.Returning(HttpStatusCode.OK, "{}");
+        var client = TestClient.Create(stub, endpoint);
+
+        await client.SendAsync<JsonElement>(HttpMethod.Get, path);
+
+        stub.Requests.ShouldHaveSingleItem().Uri.AbsoluteUri.ShouldBe("https://host1.test:8443/automation-api/sample/path");
+    }
+
+    [Test]
     public async Task A_successful_response_is_deserialized_and_its_unknown_properties_are_ignored()
     {
         var stub = StubHandler.Returning(
