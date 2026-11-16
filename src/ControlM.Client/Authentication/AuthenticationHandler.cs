@@ -1,3 +1,5 @@
+using System.Net;
+
 namespace ControlM.Client.Authentication;
 
 internal sealed class AuthenticationHandler(ICredentialScheme scheme) : DelegatingHandler
@@ -12,6 +14,27 @@ internal sealed class AuthenticationHandler(ICredentialScheme scheme) : Delegati
         }
 
         await scheme.ApplyAsync(request, cancellationToken);
+        var response = await base.SendAsync(request, cancellationToken);
+        if (response.StatusCode != HttpStatusCode.Unauthorized || !await TryRecoverAsync(request, response, cancellationToken))
+        {
+            return response;
+        }
+
+        response.Dispose();
+        await scheme.ApplyAsync(request, cancellationToken);
         return await base.SendAsync(request, cancellationToken);
+    }
+
+    private async Task<bool> TryRecoverAsync(HttpRequestMessage request, HttpResponseMessage refusal, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await scheme.TryRecoverAsync(request, cancellationToken);
+        }
+        catch
+        {
+            refusal.Dispose();
+            throw;
+        }
     }
 }
