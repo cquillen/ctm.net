@@ -115,6 +115,22 @@ public sealed class LogoutTests
         afterLogout.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    // Assumed (requirements section 4.8): no real server has been sent a logout whose Authorization is not a bearer token.
+    [Test]
+    public async Task An_authorization_header_that_is_not_a_bearer_token_answers_200_naming_the_header_value()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        using var http = simulator.CreateHttpClient();
+        using var request = new HttpRequestMessage(HttpMethod.Post, Logout);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Basic", "VVNFUjE=");
+
+        using var response = await http.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync()).ShouldEqualJson(
+            """{"message":"Successfully logged out from session Basic VVNFUjE="}""");
+    }
+
     private static async Task LogInAsync(HttpClient http)
     {
         using var response = await http.PostAsync(
