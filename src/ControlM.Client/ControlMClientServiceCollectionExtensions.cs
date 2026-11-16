@@ -22,12 +22,11 @@ public static class ControlMClientServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configure);
 
-        services.AddSingleton(_ =>
-        {
-            var options = new ControlMClientOptions();
-            configure(options);
-            return options;
-        });
+        services.AddOptions<ControlMClientOptions>()
+            .Configure(configure)
+            .Validate(
+                o => o.Endpoint is not null,
+                $"{nameof(ControlMClientOptions)}.{nameof(ControlMClientOptions.Endpoint)} is required.");
         return ControlMPipeline.Compose(services.AddHttpClient<IControlMClient, ControlMClient>());
     }
 }
