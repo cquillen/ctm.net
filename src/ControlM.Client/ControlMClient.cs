@@ -35,7 +35,7 @@ internal sealed class ControlMClient(HttpClient httpClient, ControlMClientOption
         }
 
         using var failure = response;
-        throw await ApiFailure.ReadAsync(failure, cancellationToken);
+        throw await ApiFailure.ReadAsync(failure, method, path, operation: null, cancellationToken);
     }
 
     private Uri RequestUri(string path) => new($"{_endpoint}/{path.TrimStart('/')}");

@@ -1,18 +1,25 @@
 using System.Net;
 using System.Text.Json;
+using ControlM.Client.Operations;
 using ControlM.Client.Serialization;
 
 namespace ControlM.Client.Errors;
 
 internal static class ApiFailure
 {
-    public static async Task<ControlMApiException> ReadAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    public static async Task<ControlMApiException> ReadAsync(
+        HttpResponseMessage response,
+        HttpMethod method,
+        string path,
+        Operation? operation,
+        CancellationToken cancellationToken)
     {
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         var errors = ErrorsOf(body);
-        return errors is null
-            ? Create(response.StatusCode, [], body)
-            : Create(response.StatusCode, errors, responseBody: null);
+        var responseBody = errors is null ? body : null;
+        return response.StatusCode == HttpStatusCode.NotFound
+            ? new ControlMNotFoundException(errors ?? [], responseBody, method, path, operation)
+            : new ControlMApiException(response.StatusCode, errors ?? [], responseBody, method, path, operation);
     }
 
     private static IReadOnlyList<ControlMError>? ErrorsOf(string body)
@@ -27,9 +34,4 @@ internal static class ApiFailure
             return null;
         }
     }
-
-    private static ControlMApiException Create(HttpStatusCode statusCode, IReadOnlyList<ControlMError> errors, string? responseBody) =>
-        statusCode == HttpStatusCode.NotFound
-            ? new ControlMNotFoundException(errors, responseBody)
-            : new ControlMApiException(statusCode, errors, responseBody);
 }
