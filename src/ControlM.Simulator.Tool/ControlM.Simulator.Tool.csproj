@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ControlM.Simulator\ControlM.Simulator.csproj" />
+    <ProjectReference Include="..\ControlM.SpecCheck\ControlM.SpecCheck.csproj" />
+  </ItemGroup>
+</Project>
