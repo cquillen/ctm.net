@@ -1,0 +1,6 @@
+# Every text file is LF in the repository and in the working tree, on every platform.
+* text=auto eol=lf
+
+*.png binary
+*.ico binary
+*.snk binary

@@ -1,0 +1,28 @@
+# Build output
+bin/
+obj/
+artifacts/
+TestResults/
+
+# IDE and user files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.DotSettings.user
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# BMC's API spec file is confidential and must never be committed.
+/spec/
+
+# Spec comparison reports are derived from that spec.
+/report.md
+/report.json
+spec-check-report.*
+
+# Output of the client's capture handler: real traffic stays out of the repository.
+/captures/
