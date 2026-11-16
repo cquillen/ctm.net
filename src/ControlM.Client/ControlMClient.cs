@@ -1,12 +1,13 @@
 using System.Net.Http.Json;
 using ControlM.Client.Errors;
 using ControlM.Client.Serialization;
+using Microsoft.Extensions.Options;
 
 namespace ControlM.Client;
 
-internal sealed class ControlMClient(HttpClient httpClient, ControlMClientOptions options) : IControlMClient
+internal sealed class ControlMClient(HttpClient httpClient, IOptions<ControlMClientOptions> options) : IControlMClient
 {
-    private readonly string _endpoint = RequiredEndpoint(options).AbsoluteUri.TrimEnd('/');
+    private readonly string _endpoint = options.Value.Endpoint!.AbsoluteUri.TrimEnd('/');
 
     public async Task<T> SendAsync<T>(HttpMethod method, string path, object? body = null, CancellationToken cancellationToken = default)
     {
@@ -39,8 +40,4 @@ internal sealed class ControlMClient(HttpClient httpClient, ControlMClientOption
     }
 
     private Uri RequestUri(string path) => new($"{_endpoint}/{path.TrimStart('/')}");
-
-    private static Uri RequiredEndpoint(ControlMClientOptions options) =>
-        options.Endpoint ?? throw new InvalidOperationException(
-            $"{nameof(ControlMClientOptions)}.{nameof(ControlMClientOptions.Endpoint)} is required.");
 }
