@@ -52,10 +52,18 @@ public sealed class CredentialStore
             return LogoutOutcome.Failed(failure);
         }
 
-        var token = BearerToken(authorization!)!;
+        if (authorization is null)
+        {
+            return LogOutApiKey(apiKey!);
+        }
+
+        var token = BearerToken(authorization)!;
         _sessions.TryRemove(token, out _);
         return LogoutOutcome.Succeeded(token);
     }
+
+    // Assumed (requirements section 4.8): no real server has been sent a logout with an API key.
+    private static LogoutOutcome LogOutApiKey(string apiKey) => LogoutOutcome.Succeeded(apiKey);
 
     internal CredentialFailure? Check(string? apiKey, string? authorization)
     {
