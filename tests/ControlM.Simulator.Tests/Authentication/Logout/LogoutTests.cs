@@ -32,6 +32,35 @@ public sealed class LogoutTests
             JsonFixture.Load("Authentication", "ApiKey", "GetServers.invalid-bearer-token.json"));
     }
 
+    [Test]
+    public async Task A_token_that_has_already_logged_out_answers_the_same_200()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        simulator.Credentials.AddUser("USER1", "PASSWORD1");
+        using var http = simulator.CreateHttpClient();
+        await LogInAsync(http);
+        using var firstLogout = await SendWithTokenAsync(http, HttpMethod.Post, Logout, "SIMTOKEN1");
+
+        using var response = await SendWithTokenAsync(http, HttpMethod.Post, Logout, "SIMTOKEN1");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync()).ShouldEqualJson(
+            JsonFixture.Load("Authentication", "Logout", "Logout.success.json"));
+    }
+
+    [Test]
+    public async Task A_token_no_login_issued_answers_200_naming_that_token()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        using var http = simulator.CreateHttpClient();
+
+        using var response = await SendWithTokenAsync(http, HttpMethod.Post, Logout, "SIMTOKEN7");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync()).ShouldEqualJson(
+            """{"message":"Successfully logged out from session SIMTOKEN7"}""");
+    }
+
     private static async Task LogInAsync(HttpClient http)
     {
         using var response = await http.PostAsync(
