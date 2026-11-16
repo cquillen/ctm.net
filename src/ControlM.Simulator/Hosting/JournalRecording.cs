@@ -25,7 +25,10 @@ internal sealed class JournalRecording(RequestJournal journal, TimeProvider time
     }
 
     private static Dictionary<string, string> HeadersAsReceived(IHeaderDictionary headers) =>
-        headers.ToDictionary(header => header.Key, header => header.Value.ToString(), StringComparer.OrdinalIgnoreCase);
+        headers.ToDictionary(
+            header => header.Key,
+            header => string.Join(", ", header.Value.AsEnumerable()),
+            StringComparer.OrdinalIgnoreCase);
 
     private static string QueryWithoutMark(QueryString query) =>
         query.HasValue ? query.Value![1..] : string.Empty;
