@@ -13,7 +13,7 @@ public sealed class LogoutOnDisposalTests
     private const string _logoutPath = "/automation-api/session/logout";
 
     [Test]
-    public async Task Disposing_the_provider_after_a_login_sends_logout_with_the_bearer_token()
+    public async Task Disposing_the_provider_after_a_login_sends_logout_through_the_primary_handler_with_the_bearer_token()
     {
         var stub = LoggedInStub()
             .Answering(_logoutPath, HttpStatusCode.OK, Fixture("Logout", "Logout.success.json"));
