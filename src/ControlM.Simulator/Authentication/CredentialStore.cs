@@ -69,16 +69,16 @@ public sealed class CredentialStore
 
         if (hasAuthorization)
         {
-            return IsLiveSession(authorization!) ? null : CredentialFailure.InvalidOrExpiredToken();
+            return TryUseSession(authorization!) ? null : CredentialFailure.InvalidOrExpiredToken();
         }
 
         return _apiKeys.ContainsKey(apiKey!) ? null : CredentialFailure.UnknownApiKey();
     }
 
-    private bool IsLiveSession(string authorization) =>
+    private bool TryUseSession(string authorization) =>
         AuthenticationHeaderValue.TryParse(authorization, out var header)
         && string.Equals(header.Scheme, SessionLoginScheme.AuthenticationScheme, StringComparison.OrdinalIgnoreCase)
         && header.Parameter is { } token
         && _sessions.TryGetValue(token, out var session)
-        && session.IsLiveAt(_time.GetUtcNow(), _sessionLifetime);
+        && session.TryUse(_time.GetUtcNow(), _sessionLifetime);
 }
