@@ -20,5 +20,7 @@ internal static class ErrorEnvelope
 
     public static ErrorList IncorrectUsernameOrPassword() => MessageOnly("Failed to login: Incorrect username or password");
 
+    public static ErrorList LoginFailed() => MessageOnly("Failed to login: Login failed.");
+
     private static ErrorList MessageOnly(string message) => new([new ControlMError(message)]);
 }

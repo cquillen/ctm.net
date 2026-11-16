@@ -28,9 +28,14 @@ public sealed class CredentialStore
 
     internal LoginOutcome Login(string? username, string? password)
     {
-        if (username is null || password is null || !_users.ContainsKey(username))
+        if (username is null || password is null || !_users.TryGetValue(username, out var seededPassword))
         {
             return LoginOutcome.Failed(CredentialFailure.IncorrectUsernameOrPassword());
+        }
+
+        if (!string.Equals(password, seededPassword, StringComparison.Ordinal))
+        {
+            return LoginOutcome.Failed(CredentialFailure.WrongPassword());
         }
 
         var token = _tokens.Next();
