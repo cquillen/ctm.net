@@ -1,3 +1,4 @@
+using ControlM.Client.Authentication.ApiKey;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ControlM.Client;
@@ -30,7 +31,10 @@ public static class ControlMClientServiceCollectionExtensions
                 $"{nameof(ControlMClientOptions)}.{nameof(ControlMClientOptions.Endpoint)} is required.")
             .Validate(
                 o => o.CredentialScheme is not null,
-                $"An authentication scheme is required: call {nameof(ControlMClientOptions)}.{nameof(ControlMClientOptions.UseApiKey)}.");
+                $"An authentication scheme is required: call {nameof(ControlMClientOptions)}.{nameof(ControlMClientOptions.UseApiKey)}.")
+            .Validate(
+                o => o.CredentialScheme is not ApiKeyScheme { IsBlank: true },
+                $"The key given to {nameof(ControlMClientOptions)}.{nameof(ControlMClientOptions.UseApiKey)} must not be empty or whitespace.");
         return ControlMPipeline.Compose(services.AddHttpClient<IControlMClient, ControlMClient>());
     }
 }
