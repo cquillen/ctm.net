@@ -135,7 +135,7 @@ Behavior:
 - `QueryJobsAsync` hides paging behind `IAsyncEnumerable<JobSnapshot>`. A `JobSnapshot` is a job instance's state at the time of the call. A 206 from `GET /run/jobs/status` is a partial result and is surfaced to the caller.
 - `BuildAsync` and `DeployAsync` build the multipart upload from an in-memory definition. `DeployAsync` follows a `pollId` through `GET /deploy/poll` to completion.
 - The server parameter is always sent as `server`, never `ctm`. A response that names it `ctm` is read.
-- A low-level `SendAsync<T>(method, path, body?)` calls any operation the typed interface does not cover, through the same authentication, retry, error mapping and capture pipeline.
+- A low-level `SendAsync<T>(method, path, body?)` calls any operation the typed interface does not cover, through the same authentication, retry, error mapping and capture pipeline. Its path is relative to the endpoint, may carry a query string, and gives the same URL with or without a leading slash, as the endpoint does with or without a trailing one.
 
 ### 3.3 Errors
 
