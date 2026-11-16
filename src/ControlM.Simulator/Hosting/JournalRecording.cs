@@ -19,6 +19,7 @@ internal sealed class JournalRecording(RequestJournal journal, TimeProvider time
             request.Method,
             request.Path.Value ?? string.Empty,
             QueryWithoutMark(request.QueryString),
+            new Dictionary<string, string>(),
             arrival,
             context.Response.StatusCode));
     }
