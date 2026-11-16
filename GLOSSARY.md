@@ -105,6 +105,10 @@ The account, named in a job definition, under which the job runs on its agent. U
 **Session**:
 The period for which the token from one login is valid.
 
+**API key**:
+A long-lived credential, sent in `x-api-key`, that a user creates ahead of time instead of logging in. BMC calls it an API token.
+_Avoid_: API token, except when quoting BMC
+
 **Credential**:
 What a request presents to prove who the caller is: a session token or an API key.
 
