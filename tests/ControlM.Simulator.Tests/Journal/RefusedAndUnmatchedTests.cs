@@ -62,4 +62,15 @@ public sealed class RefusedAndUnmatchedTests
         entry.Method.ShouldBe("PATCH");
         entry.Status.ShouldBe(405);
     }
+
+    [Test]
+    public async Task A_request_to_the_control_api_is_not_journaled()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        using var http = simulator.CreateHttpClient();
+
+        using var response = await http.GetAsync(new Uri("/__sim/journal", UriKind.Relative));
+
+        simulator.Journal.Entries.ShouldBeEmpty();
+    }
 }
