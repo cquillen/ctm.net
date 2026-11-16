@@ -1,3 +1,4 @@
+using ControlM.Client;
 using ControlM.Simulator.Operations.UnknownOperation;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -41,6 +42,12 @@ public sealed class ControlMSimulator : IAsyncDisposable
     /// names the whole path, such as <c>/automation-api/run/jobs/status</c>.
     /// </summary>
     public HttpClient CreateHttpClient() => _app.GetTestServer().CreateClient();
+
+    /// <summary>
+    /// Returns a real <see cref="IControlMClient"/> whose requests reach this instance under <c>/automation-api</c>,
+    /// with no socket. The client is released when the simulator is disposed.
+    /// </summary>
+    public IControlMClient CreateClient() => throw new NotImplementedException();
 
     /// <inheritdoc />
     public ValueTask DisposeAsync() => _app.DisposeAsync();

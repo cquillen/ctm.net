@@ -28,7 +28,7 @@ The rules for writing code here are in `docs/conventions.md`, imported in full b
 
 ## Not yet in place
 
-- **Zero-tests setting.** The test projects start empty, so each test project file passes `--ignore-exit-code 8` to tolerate a run that finds no tests. Remove the line from a project in the change that adds that project's first test.
+- **Zero-tests setting.** `ControlM.SpecCheck.Tests` has no tests yet, so its project file passes `--ignore-exit-code 8` to tolerate a run that finds none. Remove the line in the change that adds its first test.
 
 ## Slices
 
