@@ -41,4 +41,17 @@ public sealed class RequestJournalTests
 
         simulator.Journal.Entries.ShouldHaveSingleItem().Time.ShouldBe(_arrival);
     }
+
+    [Test]
+    public async Task Entries_are_in_arrival_order_when_requests_share_a_time()
+    {
+        var time = new FakeTimeProvider(_arrival);
+        await using var simulator = await ControlMSimulator.StartAsync(o => o.TimeProvider = time);
+        using var http = simulator.CreateHttpClient();
+
+        using var first = await http.GetAsync(new Uri("/automation-api/config/servers?server=SERVER1", UriKind.Relative));
+        using var second = await http.GetAsync(new Uri("/automation-api/config/servers?server=SERVER2", UriKind.Relative));
+
+        simulator.Journal.Entries.Select(entry => entry.Query).ShouldBe(["server=SERVER1", "server=SERVER2"]);
+    }
 }
