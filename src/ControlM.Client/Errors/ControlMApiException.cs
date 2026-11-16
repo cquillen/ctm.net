@@ -14,13 +14,27 @@ public class ControlMApiException : Exception
     /// <param name="statusCode">The status code of the response.</param>
     /// <param name="errors">Every entry of the response's error list, or none when the body was not one.</param>
     /// <param name="responseBody">The text of the response body when it was not an error list.</param>
-    public ControlMApiException(HttpStatusCode statusCode, IReadOnlyList<ControlMError> errors, string? responseBody)
+    /// <param name="method">The HTTP method of the call.</param>
+    /// <param name="path">The path of the call as the caller gave it.</param>
+    /// <param name="operation">The operation of the call, or <see langword="null"/> when it was not a typed call.</param>
+    public ControlMApiException(
+        HttpStatusCode statusCode,
+        IReadOnlyList<ControlMError> errors,
+        string? responseBody,
+        HttpMethod method,
+        string path,
+        Operation? operation)
         : base($"Control-M answered {(int)statusCode}.")
     {
         ArgumentNullException.ThrowIfNull(errors);
+        ArgumentNullException.ThrowIfNull(method);
+        ArgumentNullException.ThrowIfNull(path);
         StatusCode = statusCode;
         Errors = errors;
         ResponseBody = responseBody;
+        Method = method;
+        Path = path;
+        Operation = operation;
     }
 
     /// <summary>
@@ -42,12 +56,12 @@ public class ControlMApiException : Exception
     /// <summary>
     /// The HTTP method of the failed call.
     /// </summary>
-    public HttpMethod Method => throw new NotImplementedException();
+    public HttpMethod Method { get; }
 
     /// <summary>
     /// The path of the failed call as the caller gave it, relative to the endpoint and with its query string.
     /// </summary>
-    public string Path => throw new NotImplementedException();
+    public string Path { get; }
 
     /// <summary>
     /// The operation of the failed call when it was made through a typed member; <see langword="null"/> when it was
