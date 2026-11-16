@@ -15,12 +15,14 @@ internal static class ApiFailure
         CancellationToken cancellationToken)
     {
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
-        var errors = ErrorsOf(body);
-        var responseBody = errors is null ? body : null;
+        var (errors, responseBody) = ContentOf(body);
         return response.StatusCode == HttpStatusCode.NotFound
-            ? new ControlMNotFoundException(errors ?? [], responseBody, method, path, operation)
-            : new ControlMApiException(response.StatusCode, errors ?? [], responseBody, method, path, operation);
+            ? new ControlMNotFoundException(errors, responseBody, method, path, operation)
+            : new ControlMApiException(response.StatusCode, errors, responseBody, method, path, operation);
     }
+
+    private static (IReadOnlyList<ControlMError> Errors, string? ResponseBody) ContentOf(string body) =>
+        ErrorsOf(body) is { } errors ? (errors, null) : ([], body);
 
     private static IReadOnlyList<ControlMError>? ErrorsOf(string body)
     {
