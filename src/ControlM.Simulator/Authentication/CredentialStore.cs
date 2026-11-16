@@ -40,7 +40,7 @@ public sealed class CredentialStore
     /// Ends every live session, as if each had gone unused for its whole lifetime. Each token is refused from then on,
     /// and a session client logs in again on its next call.
     /// </summary>
-    public void ExpireSessions() => throw new NotImplementedException();
+    public void ExpireSessions() => _sessions.Clear();
 
     internal LoginOutcome Login(string? username, string? password)
     {
