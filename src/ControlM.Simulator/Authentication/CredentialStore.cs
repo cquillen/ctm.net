@@ -16,6 +16,13 @@ public sealed class CredentialStore
     /// <param name="key">The key, as a request sends it.</param>
     public void AddApiKey(string key) => _apiKeys[key] = true;
 
+    /// <summary>
+    /// Seeds a user, so <c>POST /session/login</c> with this user name and password opens a session.
+    /// </summary>
+    /// <param name="username">The user name, as a login sends it.</param>
+    /// <param name="password">The user's password.</param>
+    public void AddUser(string username, string password) => throw new NotImplementedException();
+
     internal CredentialFailure? Check(string? apiKey, bool hasAuthorizationHeader)
     {
         var hasApiKey = !string.IsNullOrEmpty(apiKey);
