@@ -4,5 +4,6 @@ internal enum CredentialOutcome
 {
     Accepted,
     NoCredential,
+    InvalidOrExpiredToken,
     UnknownApiKey,
 }
