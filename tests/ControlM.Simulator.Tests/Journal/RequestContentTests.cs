@@ -53,4 +53,29 @@ public sealed class RequestContentTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         simulator.Journal.Entries.ShouldHaveSingleItem().Body.ShouldBe(body);
     }
+
+    [Test]
+    public async Task A_body_sent_to_an_unknown_path_is_kept_verbatim()
+    {
+        const string body = "FOLDER1 is not a real request";
+        await using var simulator = await ControlMSimulator.StartAsync();
+        using var http = simulator.CreateHttpClient();
+
+        using var response = await http.PostAsync(
+            new Uri("/automation-api/no/such/path", UriKind.Relative),
+            new StringContent(body, Encoding.UTF8, "text/plain"));
+
+        simulator.Journal.Entries.ShouldHaveSingleItem().Body.ShouldBe(body);
+    }
+
+    [Test]
+    public async Task A_request_without_a_body_has_an_empty_body()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        using var http = simulator.CreateHttpClient();
+
+        using var response = await http.GetAsync(GetServers);
+
+        simulator.Journal.Entries.ShouldHaveSingleItem().Body.ShouldBeEmpty();
+    }
 }
