@@ -1,0 +1,9 @@
+{
+  "errors": [
+    {
+      "message": "Method Not Allowed",
+      "code": "405",
+      "uri": "/config/servers"
+    }
+  ]
+}
