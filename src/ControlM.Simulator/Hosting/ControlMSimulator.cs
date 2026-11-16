@@ -51,7 +51,7 @@ public sealed class ControlMSimulator : IAsyncDisposable
         builder.WebHost.UseTestServer();
         var app = builder.Build();
         var credentials = new CredentialStore();
-        MapOperations(app.MapGroup(ApiPath.Base).AddEndpointFilter(new CredentialFilter()));
+        MapOperations(app.MapGroup(ApiPath.Base).AddEndpointFilter(new CredentialFilter(credentials)));
         UnknownOperationEndpoint.Map(app);
         await app.StartAsync(cancellationToken);
         return new ControlMSimulator(app, credentials);
@@ -68,13 +68,14 @@ public sealed class ControlMSimulator : IAsyncDisposable
 
     /// <summary>
     /// Returns a real <see cref="IControlMClient"/> whose requests reach this instance under <c>/automation-api</c>,
-    /// with no socket, authenticated with an API key the simulator generates: <c>SIMKEY1</c> for the first client
+    /// with no socket, authenticated with an API key the simulator generates and seeds: <c>SIMKEY1</c> for the first client
     /// of an instance, <c>SIMKEY2</c> for the second, and so on. The client is released when the simulator is disposed.
     /// </summary>
     public IControlMClient CreateClient()
     {
         var server = _app.GetTestServer();
         var apiKey = _apiKeys.Next();
+        Credentials.AddApiKey(apiKey);
         var services = new ServiceCollection();
         services
             .AddControlMClient(o =>
