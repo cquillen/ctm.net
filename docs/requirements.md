@@ -111,6 +111,8 @@ Both authentication schemes are supported: session login with a bearer token, an
 
 One root interface, `IControlMClient`, exposes four of the areas as properties, plus the low-level `SendAsync<T>` described below. Authentication is configured at registration (`services.AddControlMClient(o => ...)` with `UseSessionLogin` or `UseApiKey`) and is not part of the interface. The interface can be faked in the consumer's unit tests.
 
+`ControlMClientOptions` is an immutable record, so the registration callback returns the options to use rather than setting them: `services.AddControlMClient(o => o with { Endpoint = endpoint })`. `Endpoint` includes the `/automation-api` prefix, and a missing one fails when the client is first resolved.
+
 | Area | Members |
 | --- | --- |
 | `Orders` | `OrderJobAsync(JobRef, variables, options)` (the primary path), `OrderAsync(OrderRequest)` (whole folder or jobs filter), `GetRunStatusAsync` |
@@ -153,6 +155,8 @@ Behavior:
 | Retry | Backoff on 503 and transient network failures, for idempotent calls only. An order or a job action is never retried automatically. |
 | Capture | When enabled, writes each request and response to disk after sanitizing. Passwords, tokens and API keys are always removed. Host, server and folder names are replaced with stable stand-ins through a configurable map. |
 | TLS | Certificate trust is configurable per environment, to allow for self-signed server certificates. Validation is never disabled globally. |
+
+The handlers run outermost first in the order Retry, Authentication, Capture, then the primary handler, so that capture records each attempt as it was sent. They are composed in one place in the client's root. Error mapping is not a handler: it runs in the client's one send path, after retry and re-login have finished.
 
 ## 4. Simulator
 
