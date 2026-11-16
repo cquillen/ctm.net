@@ -48,4 +48,43 @@ public sealed class AddControlMClientTests
 
         exception.Message.ShouldContain("UseApiKey");
     }
+
+    [Test]
+    public void Both_authentication_schemes_fail_when_the_client_is_first_resolved()
+    {
+        var services = new ServiceCollection();
+        services.AddControlMClient(o =>
+        {
+            o.Endpoint = new Uri(TestClient.Endpoint);
+            o.UseApiKey(TestClient.ApiKey);
+            o.UseSessionLogin(TestClient.Username, TestClient.Password);
+        });
+        using var provider = services.BuildServiceProvider();
+
+        var exception = Should.Throw<OptionsValidationException>(provider.GetRequiredService<IControlMClient>);
+
+        exception.Message.ShouldContain("not both");
+    }
+
+    [Test]
+    [Arguments(null, "PASSWORD1")]
+    [Arguments("", "PASSWORD1")]
+    [Arguments(" ", "PASSWORD1")]
+    [Arguments("USER1", null)]
+    [Arguments("USER1", "")]
+    [Arguments("USER1", " ")]
+    public void A_blank_user_name_or_password_fails_when_the_client_is_first_resolved(string? username, string? password)
+    {
+        var services = new ServiceCollection();
+        services.AddControlMClient(o =>
+        {
+            o.Endpoint = new Uri(TestClient.Endpoint);
+            o.UseSessionLogin(username!, password!);
+        });
+        using var provider = services.BuildServiceProvider();
+
+        var exception = Should.Throw<OptionsValidationException>(provider.GetRequiredService<IControlMClient>);
+
+        exception.Message.ShouldContain("UseSessionLogin");
+    }
 }
