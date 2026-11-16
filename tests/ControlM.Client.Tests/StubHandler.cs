@@ -11,27 +11,59 @@ internal sealed record RecordedRequest(
 
 internal sealed class StubHandler(HttpStatusCode status, string responseBody) : HttpMessageHandler
 {
-    private readonly Dictionary<string, (HttpStatusCode Status, string Body)> _byPath = new(StringComparer.Ordinal);
+    private readonly Lock _gate = new();
+    private readonly Dictionary<string, Queue<(HttpStatusCode Status, string Body)>> _byPath = new(StringComparer.Ordinal);
 
     public List<RecordedRequest> Requests { get; } = [];
 
     public static StubHandler Returning(HttpStatusCode status, string responseBody) => new(status, responseBody);
 
-    public StubHandler Answering(string absolutePath, HttpStatusCode pathStatus, string pathBody)
+    public StubHandler Answering(string absolutePath, HttpStatusCode pathStatus, string pathBody) =>
+        AnsweringInTurn(absolutePath, (pathStatus, pathBody));
+
+    // Each request to the path takes the next answer; the last one answers every request after it.
+    public StubHandler AnsweringInTurn(string absolutePath, params (HttpStatusCode Status, string Body)[] answers)
     {
-        _byPath[absolutePath] = (pathStatus, pathBody);
+        _byPath[absolutePath] = new Queue<(HttpStatusCode, string)>(answers);
         return this;
     }
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        string? body = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
+        var body = await BodyOf(request, cancellationToken);
         var headers = request.Headers.ToDictionary(h => h.Key, h => h.Value, StringComparer.OrdinalIgnoreCase);
-        Requests.Add(new RecordedRequest(request.Method, request.RequestUri!, body, headers));
-        var (answerStatus, answerBody) = _byPath.GetValueOrDefault(request.RequestUri!.AbsolutePath, (status, responseBody));
+        var (answerStatus, answerBody) = Record(new RecordedRequest(request.Method, request.RequestUri!, body, headers));
         return new HttpResponseMessage(answerStatus)
         {
             Content = new StringContent(answerBody, Encoding.UTF8, "application/json"),
         };
+    }
+
+    // Copied out rather than read as a string, so the stub serializes the content as a network handler does
+    // and does not buffer it on the caller's behalf.
+    private static async Task<string?> BodyOf(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        if (request.Content is null)
+        {
+            return null;
+        }
+
+        using var copy = new MemoryStream();
+        await request.Content.CopyToAsync(copy, cancellationToken);
+        return Encoding.UTF8.GetString(copy.ToArray());
+    }
+
+    private (HttpStatusCode Status, string Body) Record(RecordedRequest request)
+    {
+        lock (_gate)
+        {
+            Requests.Add(request);
+            if (!_byPath.TryGetValue(request.Uri.AbsolutePath, out var answers))
+            {
+                return (status, responseBody);
+            }
+
+            return answers.Count > 1 ? answers.Dequeue() : answers.Peek();
+        }
     }
 }
