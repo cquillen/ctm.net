@@ -22,4 +22,17 @@ public sealed class RequestContentTests
         headers["X-API-KEY"].ShouldBe("APIKEY1");
         headers["authorization"].ShouldBe("Bearer TOKEN1");
     }
+
+    [Test]
+    public async Task A_repeated_header_is_one_string_with_its_values_joined()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        using var http = simulator.CreateHttpClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, GetServers);
+        request.Headers.Add("X-Correlation", ["CORRELATION1", "CORRELATION2"]);
+
+        using var response = await http.SendAsync(request);
+
+        simulator.Journal.Entries.ShouldHaveSingleItem().Headers["X-Correlation"].ShouldBe("CORRELATION1, CORRELATION2");
+    }
 }
