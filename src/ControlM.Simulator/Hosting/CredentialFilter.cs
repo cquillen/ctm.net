@@ -26,6 +26,7 @@ internal sealed class CredentialFilter(CredentialStore credentials) : IEndpointF
     private static ErrorList FailureBody(CredentialOutcome outcome) => outcome switch
     {
         CredentialOutcome.NoCredential => ErrorEnvelope.NoCredential(),
+        CredentialOutcome.BothCredentialHeaders => ErrorEnvelope.BothCredentialHeaders(),
         CredentialOutcome.InvalidOrExpiredToken => ErrorEnvelope.InvalidOrExpiredToken(),
         CredentialOutcome.UnknownApiKey => ErrorEnvelope.UnknownApiKey(),
         _ => throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "The outcome is not a failure."),
