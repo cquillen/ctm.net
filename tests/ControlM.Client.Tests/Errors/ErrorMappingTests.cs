@@ -47,4 +47,21 @@ public sealed class ErrorMappingTests
             new ControlMError("Unknown host", Item: "HOST1"),
         ]);
     }
+
+    [Test]
+    [Arguments("<html><body><h1>502 Bad Gateway</h1></body></html>")]
+    [Arguments("")]
+    [Arguments("""{"error":"Bad Gateway"}""")]
+    public async Task A_failure_body_that_is_not_an_error_list_gives_no_entries_and_the_body_text(string body)
+    {
+        var stub = StubHandler.Returning(HttpStatusCode.BadGateway, body);
+        var client = TestClient.Create(stub);
+
+        var exception = await Should.ThrowAsync<ControlMApiException>(
+            () => client.SendAsync<JsonElement>(HttpMethod.Get, "/sample/path"));
+
+        exception.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        exception.Errors.ShouldBeEmpty();
+        exception.ResponseBody.ShouldBe(body);
+    }
 }

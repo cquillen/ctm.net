@@ -29,4 +29,10 @@ public class ControlMApiException : Exception
     /// Every entry of the response's error list, in the server's order. Empty when the body was not an error list.
     /// </summary>
     public IReadOnlyList<ControlMError> Errors { get; }
+
+    /// <summary>
+    /// The text of the response body when it was not an error list, such as a proxy's HTML page; otherwise
+    /// <see langword="null"/>.
+    /// </summary>
+    public string? ResponseBody { get; }
 }
