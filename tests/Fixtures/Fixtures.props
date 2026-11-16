@@ -1,0 +1,10 @@
+<Project>
+  <!-- Brings the shared fixtures and their helper into a test project, which imports it with one line:
+       <Import Project="..\Fixtures\Fixtures.props" /> -->
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)**\*.json"
+          Link="Fixtures\%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+    <Compile Include="$(MSBuildThisFileDirectory)JsonFixture.cs" Link="Fixtures\JsonFixture.cs" />
+  </ItemGroup>
+</Project>
