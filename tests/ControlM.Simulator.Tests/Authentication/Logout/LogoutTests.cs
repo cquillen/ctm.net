@@ -95,6 +95,26 @@ public sealed class LogoutTests
         afterRefusal.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    // Assumed (requirements section 4.8): no real server has been sent a logout with an API key.
+    [Test]
+    public async Task An_api_key_alone_answers_200_naming_the_key_and_ends_no_session()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        simulator.Credentials.AddUser("USER1", "PASSWORD1");
+        using var http = simulator.CreateHttpClient();
+        await LogInAsync(http);
+        using var request = new HttpRequestMessage(HttpMethod.Post, Logout);
+        request.Headers.Add("x-api-key", "APIKEY1");
+
+        using var response = await http.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync()).ShouldEqualJson(
+            """{"message":"Successfully logged out from session APIKEY1"}""");
+        using var afterLogout = await SendWithTokenAsync(http, HttpMethod.Get, GetServers, "SIMTOKEN1");
+        afterLogout.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
     private static async Task LogInAsync(HttpClient http)
     {
         using var response = await http.PostAsync(
