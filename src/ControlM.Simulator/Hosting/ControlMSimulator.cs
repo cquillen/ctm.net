@@ -52,7 +52,7 @@ public sealed class ControlMSimulator : IAsyncDisposable
         var app = builder.Build();
         var credentials = new CredentialStore();
         MapOperations(app.MapGroup(ApiPath.Base).AddEndpointFilter(new CredentialFilter(credentials)));
-        UnknownOperationEndpoint.Map(app);
+        UnknownOperationEndpoint.Map(app).AddEndpointFilter(new WrongMethodFilter(app.Services.GetRequiredService<EndpointDataSource>()));
         await app.StartAsync(cancellationToken);
         return new ControlMSimulator(app, credentials);
     }
