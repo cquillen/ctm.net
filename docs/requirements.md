@@ -62,7 +62,7 @@ Some areas hold what every operation shares:
 | `Serialization` | Client | The one set of JSON options for every request and response body. |
 | `Serialization` | Simulator | The one set of JSON options for every response body the simulator writes. |
 | `Operations` | Client | The operation table: the name, method and path of every implemented operation. |
-| `Operations` | Simulator | The known operations the simulator does not implement and their 501 responses, and the 404 for an unknown operation. |
+| `Operations` | Simulator | The known operations the simulator does not implement and their 501 responses, the 404 for an unknown operation, and the 405 for a wrong method on a real path. |
 | `Errors` | Client | The `ErrorList` envelope and the exceptions it maps to. |
 | `Errors` | Simulator | Building the `ErrorList` envelope as data, with the client's types. The endpoint that answers writes it. |
 | `Tls` | Client | Per-environment certificate trust. |
@@ -178,7 +178,7 @@ The simulator reproduces the HTTP surface and observable behavior of the support
 - The simulator also lists the rest of the API's operations (name, method, path), written by hand from the public documentation and the Python client.
 - A known but unimplemented operation returns 501 with an `ErrorList` body naming the operation.
 - A path matching no known operation returns 404 as a real server does, whether or not the request carries a credential: one error entry with the message `Not Found`, the code `404`, and a `uri` holding the path without the `/automation-api` prefix or the query string. [ADR 0001](adr/0001-unknown-path-answers-404.md) gives the reason.
-- A path of an implemented operation called with a method it does not serve returns 405 as a real server does, whatever the credential: an `Allow` header naming the methods it serves, and one error entry with the message `Method Not Allowed`, the code `405`, and a `uri` formed as for the 404.
+- A path of an implemented operation called with a method it does not serve returns 405 as a real server does, whatever the credential: an `Allow` header naming the methods it serves, and one error entry with the message `Method Not Allowed`, the code `405`, and a `uri` formed as for the 404. The fallback route that answers the 404 matches every method, so ASP.NET Core routing never produces its own 405; the simulator works out the 405 and its `Allow` value from the endpoints registered for the path.
 - An unexpected call never succeeds silently, and the journal marks a request that matched no operation.
 
 ### 4.2 Authentication
@@ -273,6 +273,7 @@ When the public documentation and the Python client do not settle a detail, choo
 | Unknown path outside `/automation-api` | The same 404, with the whole path in `uri` |
 | The bare path `/automation-api`, with nothing after it | Outside the prefix: the same 404, with `/automation-api` in `uri` |
 | Wrong method on a real path | The same 405 as the observed `PATCH /run/jobs/status`, for every method, path and credential |
+| `Allow` for a path served by more than one method | The methods joined by `, `; only a path served by one method was observed |
 | 401 for an API key that was never seeded | The message `Invalid API token.`; no API token was available to probe |
 | A seeded API key beside other credential headers | The key is enough; the other headers are ignored |
 | An `Authorization` header without a seeded API key | The invalid or expired token message, whatever the header's scheme and whether an unknown API key came with it |
