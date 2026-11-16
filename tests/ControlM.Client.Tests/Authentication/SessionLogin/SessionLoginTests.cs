@@ -1,5 +1,7 @@
 using System.Net;
 using System.Text.Json;
+using ControlM.Client.Errors;
+using ControlM.Client.Operations;
 using ControlM.Fixtures;
 using Shouldly;
 
@@ -39,5 +41,54 @@ public sealed class SessionLoginTests
         call.Headers.GetValueOrDefault("Authorization").ShouldBe(["Bearer SIMTOKEN1"]);
     }
 
-    private static string LoginSuccess => JsonFixture.Load("Authentication", "Login", "Login.success.json");
+    [Test]
+    public async Task Later_calls_reuse_the_token_without_logging_in_again()
+    {
+        var stub = StubHandler.Returning(HttpStatusCode.OK, "[]").Answering(LoginPath, HttpStatusCode.OK, LoginSuccess);
+        var client = TestClient.CreateWithSessionLogin(stub);
+
+        await client.SendAsync<JsonElement>(HttpMethod.Get, "/config/servers");
+        await client.SendAsync(HttpMethod.Post, "/sample/path");
+
+        stub.Requests.Count(r => r.Uri.AbsolutePath == LoginPath).ShouldBe(1);
+        stub.Requests[^1].Headers.GetValueOrDefault("Authorization").ShouldBe(["Bearer SIMTOKEN1"]);
+    }
+
+    [Test]
+    public async Task A_login_answered_401_throws_the_authentication_exception_for_the_login_and_sends_nothing_more()
+    {
+        var stub = StubHandler.Returning(HttpStatusCode.OK, "[]")
+            .Answering(LoginPath, HttpStatusCode.Unauthorized, LoginFixture("Login.unknown-user.json"));
+        var client = TestClient.CreateWithSessionLogin(stub);
+
+        var exception = await Should.ThrowAsync<ControlMAuthenticationException>(
+            () => client.SendAsync<JsonElement>(HttpMethod.Get, "/config/servers"));
+
+        exception.Operation.ShouldBe(Operation.Login);
+        exception.Method.ShouldBe(HttpMethod.Post);
+        exception.Path.ShouldBe("/session/login");
+        exception.Errors.ShouldHaveSingleItem().ShouldBe(new ControlMError("Failed to login: Incorrect username or password"));
+        stub.Requests.ShouldHaveSingleItem().Uri.AbsolutePath.ShouldBe(LoginPath);
+    }
+
+    [Test]
+    public async Task A_login_answered_500_throws_the_api_exception_for_the_login_and_sends_nothing_more()
+    {
+        var stub = StubHandler.Returning(HttpStatusCode.OK, "[]")
+            .Answering(LoginPath, HttpStatusCode.InternalServerError, LoginFixture("Login.wrong-password.json"));
+        var client = TestClient.CreateWithSessionLogin(stub);
+
+        var exception = await Should.ThrowAsync<ControlMApiException>(
+            () => client.SendAsync<JsonElement>(HttpMethod.Get, "/config/servers"));
+
+        exception.StatusCode.ShouldBe(HttpStatusCode.InternalServerError);
+        exception.Operation.ShouldBe(Operation.Login);
+        exception.Path.ShouldBe("/session/login");
+        exception.Errors.ShouldHaveSingleItem().ShouldBe(new ControlMError("Failed to login: Login failed."));
+        stub.Requests.ShouldHaveSingleItem().Uri.AbsolutePath.ShouldBe(LoginPath);
+    }
+
+    private static string LoginSuccess => LoginFixture("Login.success.json");
+
+    private static string LoginFixture(string fileName) => JsonFixture.Load("Authentication", "Login", fileName);
 }
