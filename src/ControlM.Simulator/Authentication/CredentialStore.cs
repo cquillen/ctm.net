@@ -26,11 +26,16 @@ public sealed class CredentialStore
     /// <param name="password">The user's password.</param>
     public void AddUser(string username, string password) => _users[username] = password;
 
-    internal string Login(string username, string password)
+    internal LoginOutcome Login(string? username, string? password)
     {
+        if (username is null || password is null || !_users.ContainsKey(username))
+        {
+            return LoginOutcome.Failed(CredentialFailure.IncorrectUsernameOrPassword());
+        }
+
         var token = _tokens.Next();
         _sessions[token] = true;
-        return token;
+        return LoginOutcome.Succeeded(token);
     }
 
     internal CredentialFailure? Check(string? apiKey, bool hasAuthorizationHeader)
