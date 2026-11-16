@@ -1,0 +1,9 @@
+{
+  "errors": [
+    {
+      "message": "Not Found",
+      "code": "404",
+      "uri": "/automation-api"
+    }
+  ]
+}

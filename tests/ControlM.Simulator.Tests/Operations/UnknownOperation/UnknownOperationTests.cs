@@ -71,4 +71,17 @@ public sealed class UnknownOperationTests
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         (await response.Content.ReadAsStringAsync()).ShouldEqualJson(Fixture);
     }
+
+    [Test]
+    public async Task The_bare_prefix_is_outside_the_api_and_reports_itself_whole()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        using var http = simulator.CreateHttpClient();
+
+        using var response = await http.GetAsync(new Uri("/automation-api", UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await response.Content.ReadAsStringAsync()).ShouldEqualJson(
+            JsonFixture.Load("Operations", "UnknownOperation", "UnknownOperation.bare-prefix.json"));
+    }
 }
