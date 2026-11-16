@@ -5,7 +5,7 @@ namespace ControlM.Client;
 
 internal sealed class ControlMClient(HttpClient httpClient, ControlMClientOptions options) : IControlMClient
 {
-    private readonly string _endpoint = options.Endpoint!.AbsoluteUri.TrimEnd('/');
+    private readonly string _endpoint = RequiredEndpoint(options).AbsoluteUri.TrimEnd('/');
 
     public async Task<T> SendAsync<T>(HttpMethod method, string path, object? body = null, CancellationToken cancellationToken = default)
     {
@@ -28,4 +28,8 @@ internal sealed class ControlMClient(HttpClient httpClient, ControlMClientOption
     }
 
     private Uri RequestUri(string path) => new($"{_endpoint}/{path.TrimStart('/')}");
+
+    private static Uri RequiredEndpoint(ControlMClientOptions options) =>
+        options.Endpoint ?? throw new InvalidOperationException(
+            $"{nameof(ControlMClientOptions)}.{nameof(ControlMClientOptions.Endpoint)} is required.");
 }
