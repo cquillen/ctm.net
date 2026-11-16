@@ -17,6 +17,7 @@ The simulator has two audiences: automated tests (in-process, deterministic, par
 | `ControlM.Simulator` | Library | Simulator core, in-process host, test API, `/__sim/` control API |
 | `ControlM.Simulator.Tool` | Executable | Thin `Program` that parses options and starts the standalone host; no behavior of its own |
 | `ControlM.SpecCheck` | Library | Compares the client and simulator with an OpenAPI document |
+| `ControlM.Client.Sample` | Executable | A console application, in `samples/`, that logs in to a real server with credentials typed at a prompt; run by hand, never by the gate |
 | `ControlM.Client.Tests`, `ControlM.Simulator.Tests`, `ControlM.Conformance.Tests`, `ControlM.SpecCheck.Tests` | Tests | TUnit on Microsoft.Testing.Platform, Shouldly |
 
 Third-party dependencies: TUnit and Shouldly, in the test projects only. Everything else comes from the .NET base libraries and Microsoft's own packages.
@@ -29,6 +30,7 @@ Structural rules:
 - Inside `ControlM.Simulator`, the domain model and state machine do not depend on ASP.NET Core; only the host layer does.
 - `ControlM.Simulator` depends on no test framework. It takes a `TimeProvider` and returns ordinary objects.
 - Neither the client nor the simulator depends on an OpenAPI reader; only `ControlM.SpecCheck` does.
+- `ControlM.Client.Sample` references only `ControlM.Client`, and uses only its public API, as a consuming application would.
 - The typed client interface, the types it exchanges, the operation table, the simulator test API and the control API are public surface. Everything else is `internal`. Where the simulator or `ControlM.SpecCheck` needs something internal from a project it depends on, that project grants it `InternalsVisibleTo`.
 - Client and simulator are organized by area and, within each area, by operation. Adding an operation or a job type adds files and one registration, with no central switch to edit.
 
@@ -77,7 +79,7 @@ Some areas hold what every operation shares:
 | `Operations`, `Parameters`, `Bodies`, `StatusCodes`, `ContentTypes`, `Authentication`, `LiveResponses` | One per row of the table in section 6: the comparison that produces those findings. |
 | `Reporting` | Findings, severities, and the Markdown and JSON reports. |
 
-The project root holds only the entry point: in the client, `IControlMClient`, its implementation, the composition of the handler pipeline, and `AddControlMClient` with its options; in `ControlM.SpecCheck`, the `spec-check` command that the tool calls. The simulator's root is empty.
+The project root holds only the entry point: in the client, `IControlMClient`, its implementation, the composition of the handler pipeline, and `AddControlMClient` with its options; in `ControlM.SpecCheck`, the `spec-check` command that the tool calls; in `ControlM.Client.Sample`, its `Program`, and it has no areas. The simulator's root is empty.
 
 An area may use the areas before it in these lists, never one after it:
 
@@ -116,7 +118,7 @@ One root interface, `IControlMClient`, exposes four of the areas as properties, 
 
 `ControlMClientOptions` follows the standard .NET options pattern: the registration callback sets its properties, `services.AddControlMClient(o => o.Endpoint = endpoint)`, as `ControlMSimulator.StartAsync` does in section 5.2. `Endpoint` includes the `/automation-api` prefix, and a missing one fails when the client is first resolved.
 
-An authentication scheme is required, because every operation needs a credential. `UseApiKey(key)` and `UseSessionLogin(...)` are methods of `ControlMClientOptions`. A client with no scheme, or with an empty or whitespace API key, fails when it is first resolved.
+An authentication scheme is required, because every operation needs a credential. `UseApiKey(key)` and `UseSessionLogin(username, password)` are methods of `ControlMClientOptions`. A client fails when it is first resolved if it has no scheme, both schemes, an empty or whitespace API key, or an empty or whitespace user name or password.
 
 | Area | Members |
 | --- | --- |
@@ -125,7 +127,7 @@ An authentication scheme is required, because every operation needs a credential
 | `Deployment` | `BuildAsync`, `DeployAsync`, `GetJobsAsync`, `GetFoldersAsync`, `DeleteFolderAsync` |
 | `Topology` | `GetServersAsync`, `GetAgentsAsync`, `GetHostGroupsAsync` |
 
-Each member is one feature, in a folder named for the method without `Async`. The exception is the seven job actions (`RerunAsync` to `RunNowAsync`), which differ only by path segment and form one family, `Jobs/Actions`. An operation with no member of its own (`GET /deploy/poll` and the two session calls) takes its folder name from the operation table.
+Each member is one feature, in a folder named for the method without `Async`. The exception is the seven job actions (`RerunAsync` to `RunNowAsync`), which differ only by path segment and form one family, `Jobs/Actions`. An operation with no member of its own (`GET /deploy/poll` and the two session calls, `Login` and `Logout`) takes its folder name from the operation table. The session login scheme itself is the feature `Authentication/SessionLogin`, named for `UseSessionLogin`, as `Authentication/ApiKey` is for `UseApiKey`.
 
 The interface adds the typing the API lacks:
 
@@ -147,6 +149,8 @@ Behavior:
 ### 3.3 Errors
 
 - An API failure throws `ControlMApiException`, carrying the status code, every entry of the `ErrorList` body, the method and path, and the operation. A call made through either `SendAsync` has no operation. Subtypes: `ControlMAuthenticationException` (a 401: for session login, one that remains after one re-login) and `ControlMNotFoundException` (404).
+- A failed login is mapped by its status like any other failure, with the operation `Login` and the path `/session/login`, so a caller can tell rejected credentials from a token refused after a fresh login. A real server answers 401 for an unknown user and 500 for a known user's wrong password (section 4.2).
+- An API key the server cannot decode is answered with 400 (section 4.2), so it throws `ControlMApiException`, not `ControlMAuthenticationException`.
 - An error entry carries the server's `message` and, where the server sends them, `id`, `item`, `file`, `line`, `col`, `code` and `uri`. The first six come from the Python client; `code` and `uri` were observed on a real server.
 - The path the exception carries is the one the caller gave, relative to the endpoint and with its query string. Its message names the status code, the method, the path and the first error message.
 - A failure whose body is not an `ErrorList` still throws `ControlMApiException`, with no entries and the text of the body. A body counts as an `ErrorList` only when it parses as one and every entry has a message.
@@ -157,12 +161,21 @@ Behavior:
 
 | Concern | Requirement |
 | --- | --- |
-| Authentication | One abstraction, two implementations, held by a singleton so that its state outlives the handlers `IHttpClientFactory` rotates. Session: login, re-login once on 401, logout on disposal. API key: adds `x-api-key`. |
+| Authentication | One abstraction, two implementations, held by a singleton so that its state outlives the handlers `IHttpClientFactory` rotates. API key: adds `x-api-key`. Session: see below. |
 | Retry | Backoff on 503 and transient network failures, for idempotent calls only. An order or a job action is never retried automatically. |
 | Capture | When enabled, writes each request and response to disk after sanitizing. Passwords, tokens and API keys are always removed. Host, server and folder names are replaced with stable stand-ins through a configurable map. |
 | TLS | Certificate trust is configurable per environment, to allow for self-signed server certificates. Validation is never disabled globally. |
 
 The handlers run outermost first in the order Retry, Authentication, Capture, then the primary handler, so that capture records each attempt as it was sent. They are composed in one place in the client's root. Error mapping is not a handler: it runs in the client's one send path, after retry and re-login have finished.
+
+Session login:
+
+- The client logs in on the first request that needs a token, not when it is resolved, and sends the token as `Authorization: Bearer`.
+- It keeps no clock for the token. It logs in again only when a request is answered 401, and then resends that request once; a second 401 reaches the send path. Request content is buffered before the first send so that it can be sent again.
+- Calls that are answered 401 at the same time share one login. A call whose 401 came from a token that has already been replaced resends with the new token without logging in.
+- A failed login, first or repeated, is not retried.
+- Login and logout are sent through an `HttpClient` of their own, with the same primary handler and Capture but neither Retry nor Authentication.
+- Disposing the client's service provider logs out if a token is held. Logout is best effort: any failure is swallowed, nothing is retried, and disposal never throws.
 
 ## 4. Simulator
 
@@ -180,22 +193,35 @@ The simulator reproduces the HTTP surface and observable behavior of the support
 - A path matching no known operation returns 404 as a real server does, whether or not the request carries a credential: one error entry with the message `Not Found`, the code `404`, and a `uri` holding the path without the `/automation-api` prefix or the query string. [ADR 0001](adr/0001-unknown-path-answers-404.md) gives the reason.
 - A path of an implemented operation called with a method it does not serve returns 405 as a real server does, whatever the credential: an `Allow` header naming the methods it serves, and one error entry with the message `Method Not Allowed`, the code `405`, and a `uri` formed as for the 404. The fallback route that answers the 404 matches every method, so ASP.NET Core routing never produces its own 405; the simulator works out the 405 and its `Allow` value from the endpoints registered for the path.
 - An unexpected call never succeeds silently, and the journal marks a request that matched no operation.
+- A real server sends its error bodies with no `Content-Type`, with CRLF line endings and a leading blank line. The simulator sends them as `application/json` and does not reproduce the formatting: a caller reads the JSON, and tests compare it by value.
 
 ### 4.2 Authentication
 
-- Session login issues a token, sent as `Authorization: Bearer`. API keys are seeded and sent as `x-api-key`.
-- Session lifetime is configurable (default: 30 minutes from login, whatever the activity). A token can be expired or revoked on demand.
-- Every implemented operation checks the credential. An unknown path and a wrong method do not: they answer 404 and 405 whatever the request carries.
-- A missing, invalid or expired credential returns 401 with one error entry and no `code` or `uri`. The message depends on what the request carried:
+- Users are seeded with a user name and password, and log in with `POST /session/login`. API keys are seeded and sent as `x-api-key`.
+- Session login issues a token, sent as `Authorization: Bearer`. Tokens come from a per-instance sequence: `SIMTOKEN1`, `SIMTOKEN2` and so on.
+- A session is an idle timeout, as BMC's administration guide documents: it expires `ControlMSimulatorOptions.SessionLifetime` (default 30 minutes) after its last authenticated request, read from the `TimeProvider`. A real server may expire a token up to 10 minutes late, and caps the timeout at 3 hours; neither is simulated. A session can be expired on demand (section 5.1).
+- Every implemented operation checks the credential, except the two session operations below. An unknown path and a wrong method do not: they answer 404 and 405 whatever the request carries.
+- The credential check looks first at which headers are present, then at their values. A failure returns one error entry with no `code` or `uri`:
 
-  | Request carries | Message |
-  | --- | --- |
-  | No `x-api-key` with a value, and no `Authorization` header | `Unauthenticated request: No authentication header was provided` |
-  | A bearer token that is invalid or expired | `User not found. Session token is invalid or expired.` |
-  | An API key that was never seeded | `Invalid API token.` (assumed, section 4.8) |
+  | Request carries | Status | Message |
+  | --- | --- | --- |
+  | No `x-api-key` with a value, and no `Authorization` header | 401 | `Unauthenticated request: No authentication header was provided` |
+  | Both an `x-api-key` with a value and an `Authorization` header, whatever their values | 401 | `Unauthenticated request: Request cannot contain both x-api-key and authorization headers` |
+  | A bearer token that is invalid or expired | 401 | `User not found. Session token is invalid or expired.` |
+  | An API key that was never seeded | 400 | `Cannot validate token value, decode failed` |
 
-  The first two were observed on a real server.
-- A request with a seeded API key passes, whatever other headers it carries.
+  All four were observed on a real server: the second with an unknown key beside a valid token, the last with a value the server could not decode. The simulator's keys are of that kind. What a real server answers for a well-formed key that is unknown or revoked is not known and not simulated.
+- `POST /session/login` checks no credential. Its body is `{"username","password"}`, and it answers:
+
+  | Case | Status | Body |
+  | --- | --- | --- |
+  | A seeded user and the right password | 200 | `{"username","token","version"}`, with the user name as sent and `version` `9.22.60` |
+  | An unknown user, or a body without `username` or `password` | 401 | `Failed to login: Incorrect username or password` |
+  | A seeded user and the wrong password | 500 | `Failed to login: Login failed.` |
+  | A body that is not JSON | 400 | (assumed, section 4.8) |
+
+  The first three were observed on a real server. The 500 was seen for one user, and its cause, such as how that user authenticates, is not known.
+- `POST /session/logout` answers the two header-level 401s above, but does not check the token's value. Any bearer token gets 200 with `{"message":"Successfully logged out from session <token>"}`, and the session ends if it was live. A real server answered the same for a token that had already logged out.
 
 ### 4.3 Domain model
 
@@ -266,7 +292,7 @@ When the public documentation and the Python client do not settle a detail, choo
 | Shape of `waitingInfo` | A list of reason strings |
 | `server` in the order body | Accepted in place of `ctm`, which the documented example still sends |
 | Path of the delete-folder operation | `DELETE /deploy/folder/{server}/{folderName}`, as in the Python client. The documentation's example shows `DELETE /deploy/folder/{folder}?server={server}` |
-| Session lifetime | A token expires 30 minutes after login; activity does not extend it |
+| Session lifetime | An idle timeout, as BMC's administration guide documents: a token expires 30 minutes after its last authenticated request. Not probed |
 | Order ID across reruns | A rerun keeps the job instance's order ID |
 | Agents and servers | An agent belongs to the server it was added to; the same name on two servers is two agents |
 | Unknown path with a method other than `GET` | The same 404 as the `GET` that was observed |
@@ -274,9 +300,12 @@ When the public documentation and the Python client do not settle a detail, choo
 | The bare path `/automation-api`, with nothing after it | Outside the prefix: the same 404, with `/automation-api` in `uri` |
 | Wrong method on a real path | The same 405 as the observed `PATCH /run/jobs/status`, for every method, path and credential |
 | `Allow` for a path served by more than one method | The methods joined by `, `; only a path served by one method was observed |
-| 401 for an API key that was never seeded | The message `Invalid API token.`; no API token was available to probe |
-| A seeded API key beside other credential headers | The key is enough; the other headers are ignored |
-| An `Authorization` header without a seeded API key | The invalid or expired token message, whatever the header's scheme and whether an unknown API key came with it |
+| A seeded API key beside an `Authorization` header | The same 401 as the observed unknown key beside a valid token: the check is on which headers are present |
+| An `Authorization` header that is not a live bearer token | The invalid or expired token message, whatever the header's scheme |
+| `POST /session/login` with credential headers | They are ignored, even both at once |
+| A login body that is not JSON | 400, with one error entry |
+| The user name in a login response | Echoed exactly as sent |
+| `POST /session/logout` with only an API key | 200, with the key in the message where a token would be; nothing ends |
 | A request with no credential and an invalid body | 401, not 400: the credential is checked before the body |
 
 ## 5. Simulator control
@@ -293,7 +322,7 @@ One set of control capabilities, exposed three ways over a single implementation
 | API faults | `sim.Api` | `Faults` | By operation: status code, added latency, dropped connection, malformed body; once, N times or always |
 | Stubs | `sim.Api.Stub` | `Faults` | Canned response for any method and path. Stateless, takes precedence over the named 501 and the unknown-operation 404, recorded in the journal |
 | Operator actions | `sim.Operator` | `Jobs` | Rerun, hold, free, kill, set-to-OK, confirm or run-now a job out of band, as a Control-M operator would |
-| Credentials | `sim.Credentials` | `Authentication` | Seed users and API keys; expire or revoke sessions |
+| Credentials | `sim.Credentials` | `Authentication` | Seed users (`AddUser(username, password)`) and API keys; expire every live session (`ExpireSessions()`) or one (`ExpireSession(token)`). An expired and a revoked token look the same on the wire, so there is no separate revoke |
 | Virtual files | `sim.Files` | `VirtualFiles` | Create or remove paths on a host |
 | Time | `TimeProvider`, `sim.TriggerNewDay()` | `Jobs` | Advance the injected provider; trigger New Day |
 | Journal | `sim.Journal` | `Journal` | Every request received: operation, method, path, headers, body, time. A request that matched no operation is marked as such |
@@ -308,7 +337,7 @@ The journal holds every request to the Control-M API surface, including one answ
 
 ### 5.2 In-process use
 
-- `ControlMSimulator.StartAsync(o => o.TimeProvider = time)` starts an instance in milliseconds. `sim.CreateClient()` returns a real client wired to it, after seeding a fresh API key and configuring the client with it. `sim.CreateClient(o => ...)` lets the test choose the credential instead, such as an unknown key: it seeds no key, and runs the callback after setting the endpoint. `sim.CreateHttpClient()` returns a raw `HttpClient`, which sends no credential of its own.
+- `ControlMSimulator.StartAsync(o => o.TimeProvider = time)` starts an instance in milliseconds. `sim.CreateClient()` returns a real client wired to it, after seeding a fresh API key and configuring the client with it. `sim.CreateClient(o => ...)` lets the test choose the credential instead, such as an unknown key: it seeds no key, and runs the callback after setting the endpoint. A session client is a seeded user and `sim.CreateClient(o => o.UseSessionLogin("USER1", "PASSWORD1"))`. `sim.CreateHttpClient()` returns a raw `HttpClient`, which sends no credential of its own.
 - Each test starts its own instance. Instances share no state, so tests run in parallel.
 - The in-process host uses the ASP.NET Core test server and opens no socket. The standalone host uses Kestrel. A dropped-connection fault reaches the client as a transient network failure under both.
 - Typed control calls act on the simulator core directly, with no HTTP round trip.
@@ -376,11 +405,12 @@ dotnet run --project src/ControlM.Simulator.Tool -- spec-check --spec <file> [--
 - Client tests deserialize the raw fixtures directly, with no simulator involved.
 - Fixtures are written by hand from the public documentation and the Python client: real shapes, invented values. Each has one copy, shared by the test projects that use it.
 - A test project brings in the fixtures, and `JsonFixture`, which loads one and compares JSON by value, by importing `tests/Fixtures/Fixtures.props`. There is no shared test project.
-- Identifiers the simulator generates (order IDs, run IDs, poll IDs, session tokens, and the API keys `CreateClient()` seeds, such as `SIMKEY1`) come from per-instance sequences, so the same calls on a new instance produce the same values and a fixture can hold them literally. Each kind of identifier has its own sequence, held by the area that issues it.
-- Every observation of a real server in this project comes from one that reports API version 9.22.60, the target version; a probe need not ask again. The maintainer can probe it with session login only and holds no API token, so API key behavior is taken from BMC's documentation and Python client, and what they leave open is recorded in section 4.8.
+- Identifiers the simulator generates (order IDs, run IDs, poll IDs, session tokens such as `SIMTOKEN1`, and the API keys `CreateClient()` seeds, such as `SIMKEY1`) come from per-instance sequences, so the same calls on a new instance produce the same values and a fixture can hold them literally. Each kind of identifier has its own sequence, held by the area that issues it.
+- Every observation of a real server in this project comes from one that reports API version 9.22.60, the target version; a probe need not ask again. The maintainer can probe it with session login only and holds no API token, so API key behavior is taken from BMC's documentation and Python client, and what they leave open is recorded in section 4.8. The exceptions were probed with a session token: a value the server cannot decode sent as an API key, and both headers in one request.
 - The conformance suite is written against the client interface and runs against either the simulator or a real server.
 - A real server is opt-in and never used by CI. Its endpoint, credential, and the server, host and folder names to use come from environment variables prefixed `CTM_CONFORMANCE_`. When they are absent, the suite runs against the simulator.
-- A conformance test that arranges state through the simulator's test API is marked simulator-only and is skipped against a real server. The rest use only the client interface. A simulator-only test carries `[Category("SimulatorOnly")]`, as does a test of behavior not yet verifiable against a real server, such as API key authentication while no API token is available.
+- A conformance test that arranges state through the simulator's test API is marked simulator-only and is skipped against a real server. The rest use only the client interface. A simulator-only test carries `[Category("SimulatorOnly")]`, as does a test of behavior not yet verifiable against a real server, such as API key authentication while no API token is available. Session login tests that use only the client interface are not simulator-only; a session expired through `sim.Credentials` is.
+- `ControlM.Client.Sample` checks session login against a real server by hand, with the client as a consumer uses it. It prompts for the endpoint, user name and password, reading the password without echo, and takes nothing from the environment or files. It logs in, calls `GET /config/servers`, and logs out by disposing the service provider, printing one pass or fail line per step with the status and first error message of a failure, and exits non-zero on any failure. It prints no password, token or server name, so its output can be pasted into an issue as it is. The gate builds it and never runs it, and it has no tests. It does not replace a conformance run against a real server.
 - Every implemented operation has a test comparing its response with a fixture or a documented example.
 - The whole test suite runs in parallel and completes in under one minute.
 - Scale target: an in-process test can deploy generated definitions, order individual jobs in at least 100 sub-folders across several agents, fail a chosen job once, observe the rerun, and assert on the request journal, with no wall-clock waits.
