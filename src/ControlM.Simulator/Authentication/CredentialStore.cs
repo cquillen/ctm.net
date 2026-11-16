@@ -11,8 +11,16 @@ public sealed class CredentialStore
 {
     private readonly ConcurrentDictionary<string, bool> _apiKeys = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, string> _users = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, bool> _sessions = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, Session> _sessions = new(StringComparer.Ordinal);
     private readonly SessionTokenSequence _tokens = new();
+    private readonly TimeProvider _time;
+    private readonly TimeSpan _sessionLifetime;
+
+    internal CredentialStore(TimeProvider time, TimeSpan sessionLifetime)
+    {
+        _time = time;
+        _sessionLifetime = sessionLifetime;
+    }
 
     /// <summary>
     /// Seeds an API key, so a request that sends it in <c>x-api-key</c> is accepted, unless the request also carries an
@@ -41,7 +49,7 @@ public sealed class CredentialStore
         }
 
         var token = _tokens.Next();
-        _sessions[token] = true;
+        _sessions[token] = new Session(_time.GetUtcNow());
         return LoginOutcome.Succeeded(token);
     }
 
@@ -71,5 +79,6 @@ public sealed class CredentialStore
         AuthenticationHeaderValue.TryParse(authorization, out var header)
         && string.Equals(header.Scheme, SessionLoginScheme.AuthenticationScheme, StringComparison.OrdinalIgnoreCase)
         && header.Parameter is { } token
-        && _sessions.ContainsKey(token);
+        && _sessions.TryGetValue(token, out var session)
+        && session.IsLiveAt(_time.GetUtcNow(), _sessionLifetime);
 }
