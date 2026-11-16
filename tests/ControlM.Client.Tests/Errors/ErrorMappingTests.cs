@@ -49,6 +49,31 @@ public sealed class ErrorMappingTests
     }
 
     [Test]
+    public async Task An_entry_with_every_field_reaches_the_error_with_every_field()
+    {
+        var stub = StubHandler.Returning(
+            HttpStatusCode.BadRequest,
+            """
+            {"errors":[{"message":"Job name is missing","id":"ERR1","item":"FOLDER1","file":"jobs.json",
+              "line":3,"col":7,"code":"400","uri":"/sample/path"}]}
+            """);
+        var client = TestClient.Create(stub);
+
+        var exception = await Should.ThrowAsync<ControlMApiException>(
+            () => client.SendAsync<JsonElement>(HttpMethod.Post, "/sample/path"));
+
+        exception.Errors.ShouldHaveSingleItem().ShouldBe(new ControlMError(
+            "Job name is missing",
+            Id: "ERR1",
+            Item: "FOLDER1",
+            File: "jobs.json",
+            Line: 3,
+            Col: 7,
+            Code: "400",
+            Uri: "/sample/path"));
+    }
+
+    [Test]
     [Arguments("<html><body><h1>502 Bad Gateway</h1></body></html>")]
     [Arguments("")]
     [Arguments("""{"error":"Bad Gateway"}""")]
