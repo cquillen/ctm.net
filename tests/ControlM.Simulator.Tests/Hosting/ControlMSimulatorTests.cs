@@ -1,3 +1,4 @@
+using System.Net;
 using ControlM.Simulator.Hosting;
 using Shouldly;
 
@@ -13,5 +14,18 @@ public sealed class ControlMSimulatorTests
         await using var simulator = await ControlMSimulator.StartAsync(o => seen = o.TimeProvider);
 
         seen.ShouldBeSameAs(TimeProvider.System);
+    }
+
+    [Test]
+    public async Task An_instance_keeps_answering_after_another_started_beside_it_is_disposed()
+    {
+        await using var survivor = await ControlMSimulator.StartAsync();
+        var disposed = await ControlMSimulator.StartAsync();
+        await disposed.DisposeAsync();
+        using var http = survivor.CreateHttpClient();
+
+        using var response = await http.GetAsync(new Uri("/automation-api/no/such/path", UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 }
