@@ -22,4 +22,14 @@ public sealed class ControlMClientOptions
     /// </summary>
     /// <param name="key">The API key.</param>
     public void UseApiKey(string key) => CredentialScheme = new ApiKeyScheme(key);
+
+    /// <summary>
+    /// Authenticates with session login: the client logs in with the user name and password on its first request, and
+    /// sends the token it receives as <c>Authorization: Bearer</c>. A user name or password that is
+    /// <see langword="null"/>, empty or whitespace fails when the client is first resolved, as does choosing
+    /// <see cref="UseApiKey"/> as well.
+    /// </summary>
+    /// <param name="username">The Control-M user name.</param>
+    /// <param name="password">The user's password.</param>
+    public void UseSessionLogin(string username, string password) => throw new NotImplementedException();
 }

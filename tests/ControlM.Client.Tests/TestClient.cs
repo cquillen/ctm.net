@@ -8,6 +8,10 @@ internal static class TestClient
 
     public const string ApiKey = "APIKEY1";
 
+    public const string Username = "USER1";
+
+    public const string Password = "PASSWORD1";
+
     public static IControlMClient Create(HttpMessageHandler primaryHandler, string endpoint = Endpoint)
     {
         var services = new ServiceCollection();
