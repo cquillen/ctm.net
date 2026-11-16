@@ -9,7 +9,10 @@ internal sealed class ControlMClient(HttpClient httpClient, ControlMClientOption
 
     public async Task<T> SendAsync<T>(HttpMethod method, string path, object? body = null, CancellationToken cancellationToken = default)
     {
-        using var request = new HttpRequestMessage(method, RequestUri(path));
+        using var request = new HttpRequestMessage(method, RequestUri(path))
+        {
+            Content = JsonContent.Create(body, options: ControlMJson.Options),
+        };
         using var response = await httpClient.SendAsync(request, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<T>(ControlMJson.Options, cancellationToken))!;
     }
