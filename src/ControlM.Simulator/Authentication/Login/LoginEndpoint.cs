@@ -16,7 +16,8 @@ internal static class LoginEndpoint
         routes.MapMethods(
             Operation.Path,
             [Operation.Method.Method],
-            (HttpRequest request, CancellationToken cancellationToken) => AnswerAsync(request, credentials, cancellationToken));
+            (HttpRequest request, CancellationToken cancellationToken) => AnswerAsync(request, credentials, cancellationToken))
+            .WithMetadata(Operation);
 
     private static async Task<IResult> AnswerAsync(HttpRequest request, CredentialStore credentials, CancellationToken cancellationToken)
     {

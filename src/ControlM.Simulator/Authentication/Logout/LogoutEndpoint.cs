@@ -17,7 +17,8 @@ internal static class LogoutEndpoint
             [Operation.Method.Method],
             (HttpRequest request) => Answer(credentials.Logout(
                 request.Headers[ApiKeyScheme.HeaderName].FirstOrDefault(),
-                request.Headers.Authorization.FirstOrDefault())));
+                request.Headers.Authorization.FirstOrDefault())))
+            .WithMetadata(Operation);
 
     private static IResult Answer(LogoutOutcome outcome)
     {
