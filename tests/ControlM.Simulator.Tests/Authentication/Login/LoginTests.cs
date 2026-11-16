@@ -53,6 +53,23 @@ public sealed class LoginTests
         (await response.Content.ReadAsStringAsync()).ShouldEqualJson(LoginFixture("Login.wrong-password.json"));
     }
 
+    // The 400 and its body are assumed (requirements section 4.8): no real server has been sent a body that is not JSON.
+    [Test]
+    [Arguments("this is not JSON")]
+    [Arguments("")]
+    [Arguments("""["USER1","PASSWORD1"]""")]
+    public async Task A_body_that_is_not_a_json_object_answers_400_with_the_assumed_body(string body)
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        simulator.Credentials.AddUser("USER1", "PASSWORD1");
+        using var http = simulator.CreateHttpClient();
+
+        using var response = await http.PostAsync(Login, Json(body));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await response.Content.ReadAsStringAsync()).ShouldEqualJson(LoginFixture("Login.not-json.json"));
+    }
+
     private static StringContent Json(string body) => new(body, Encoding.UTF8, "application/json");
 
     private static string LoginFixture(string fileName) => JsonFixture.Load("Authentication", "Login", fileName);
