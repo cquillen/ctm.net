@@ -4,8 +4,13 @@ internal static class CredentialCheck
 {
     public const string ApiKeyHeader = "x-api-key";
 
-    public static CredentialOutcome Check(string? apiKey, bool hasAuthorizationHeader) =>
-        string.IsNullOrEmpty(apiKey) && !hasAuthorizationHeader
-            ? CredentialOutcome.NoCredential
-            : CredentialOutcome.Accepted;
+    public static CredentialOutcome Check(CredentialStore store, string? apiKey, bool hasAuthorizationHeader)
+    {
+        if (string.IsNullOrEmpty(apiKey))
+        {
+            return hasAuthorizationHeader ? CredentialOutcome.Accepted : CredentialOutcome.NoCredential;
+        }
+
+        return store.HasApiKey(apiKey) ? CredentialOutcome.Accepted : CredentialOutcome.UnknownApiKey;
+    }
 }
