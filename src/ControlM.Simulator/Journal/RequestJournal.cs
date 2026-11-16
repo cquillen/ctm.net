@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using ControlM.Client.Operations;
 
 namespace ControlM.Simulator.Journal;
@@ -9,7 +8,11 @@ namespace ControlM.Simulator.Journal;
 /// </summary>
 public sealed class RequestJournal
 {
-    private readonly ConcurrentBag<JournalEntry> _entries = [];
+    private readonly Lock _lock = new();
+
+    // One slot per request, taken when it arrives and filled once it is answered, so the order is arrival order
+    // even when a later request is answered first.
+    private readonly List<JournalEntry?> _slots = [];
 
     internal RequestJournal()
     {
@@ -18,7 +21,16 @@ public sealed class RequestJournal
     /// <summary>
     /// A snapshot of every entry, in the order the requests arrived. Requests that arrive later do not change it.
     /// </summary>
-    public IReadOnlyList<JournalEntry> Entries => [.. _entries];
+    public IReadOnlyList<JournalEntry> Entries
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return [.. _slots.OfType<JournalEntry>()];
+            }
+        }
+    }
 
     /// <summary>
     /// Counts every request routed to <paramref name="operation"/>, whatever it was answered, so a request refused for
@@ -26,7 +38,22 @@ public sealed class RequestJournal
     /// </summary>
     /// <param name="operation">The operation, from the client's operation table.</param>
     /// <returns>The number of requests routed to the operation so far.</returns>
-    public int Count(Operation operation) => _entries.Count(entry => entry.Operation == operation);
+    public int Count(Operation operation) => Entries.Count(entry => entry.Operation == operation);
 
-    internal void Record(JournalEntry entry) => _entries.Add(entry);
+    internal int Admit()
+    {
+        lock (_lock)
+        {
+            _slots.Add(null);
+            return _slots.Count - 1;
+        }
+    }
+
+    internal void Record(int slot, JournalEntry entry)
+    {
+        lock (_lock)
+        {
+            _slots[slot] = entry;
+        }
+    }
 }
