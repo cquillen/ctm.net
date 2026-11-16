@@ -13,6 +13,11 @@ internal sealed class AuthenticationHandler(ICredentialScheme scheme) : Delegati
             return await base.SendAsync(request, cancellationToken);
         }
 
+        if (request.Content is { } content)
+        {
+            await content.LoadIntoBufferAsync(cancellationToken);
+        }
+
         await scheme.ApplyAsync(request, cancellationToken);
         var response = await base.SendAsync(request, cancellationToken);
         if (response.StatusCode != HttpStatusCode.Unauthorized || !await TryRecoverAsync(request, response, cancellationToken))
