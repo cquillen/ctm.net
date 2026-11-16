@@ -213,6 +213,25 @@ public sealed class SessionLoginTests
         sent[1].ShouldEqualJson("""{"serializations":1}""");
     }
 
+    [Test]
+    public async Task A_failed_re_login_throws_for_the_login_and_sends_nothing_more()
+    {
+        var stub = StubHandler.Returning(HttpStatusCode.Unauthorized, InvalidToken)
+            .AnsweringInTurn(
+                _loginPath,
+                (HttpStatusCode.OK, LoginSuccess),
+                (HttpStatusCode.InternalServerError, LoginFixture("Login.wrong-password.json")));
+        var client = TestClient.CreateWithSessionLogin(stub);
+
+        var exception = await Should.ThrowAsync<ControlMApiException>(
+            () => client.SendAsync<JsonElement>(HttpMethod.Get, "/config/servers"));
+
+        exception.StatusCode.ShouldBe(HttpStatusCode.InternalServerError);
+        exception.Operation.ShouldBe(Operation.Login);
+        exception.Path.ShouldBe("/session/login");
+        stub.Requests.Select(r => r.Uri.AbsolutePath).ShouldBe([_loginPath, _serversPath, _loginPath]);
+    }
+
     private static string LoginSuccess => LoginFixture("Login.success.json");
 
     private static string SecondLoginSuccess => LoginSuccess.Replace("SIMTOKEN1", "SIMTOKEN2", StringComparison.Ordinal);
