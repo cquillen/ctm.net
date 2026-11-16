@@ -23,6 +23,40 @@ public sealed class ErrorMappingTests
         exception.Errors.ShouldHaveSingleItem().ShouldBe(new ControlMError("Not Found", Code: "404", Uri: "/no/such/path"));
     }
 
+    // The unknown API key fixture is assumed (requirements section 4.8); the other two were observed.
+    [Test]
+    [Arguments("GetServers.no-credential.json", "Unauthenticated request: No authentication header was provided")]
+    [Arguments("GetServers.invalid-bearer-token.json", "User not found. Session token is invalid or expired.")]
+    [Arguments("GetServers.unknown-api-key.json", "Invalid API token.")]
+    public async Task A_401_throws_the_authentication_exception_with_its_entry(string fixture, string message)
+    {
+        var stub = StubHandler.Returning(HttpStatusCode.Unauthorized, JsonFixture.Load("Authentication", "ApiKey", fixture));
+        var client = TestClient.Create(stub);
+
+        var exception = await Should.ThrowAsync<ControlMAuthenticationException>(
+            () => client.SendAsync<JsonElement>(HttpMethod.Get, "/config/servers"));
+
+        exception.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        exception.Errors.ShouldHaveSingleItem().ShouldBe(new ControlMError(message));
+    }
+
+    [Test]
+    public async Task A_405_throws_the_api_exception_with_its_entry()
+    {
+        var stub = StubHandler.Returning(
+            HttpStatusCode.MethodNotAllowed,
+            JsonFixture.Load("Operations", "UnknownOperation", "UnknownOperation.wrong-method.json"));
+        var client = TestClient.Create(stub);
+
+        var exception = await Should.ThrowAsync<ControlMApiException>(
+            () => client.SendAsync<JsonElement>(HttpMethod.Patch, "/config/servers"));
+
+        exception.ShouldBeOfType<ControlMApiException>();
+        exception.StatusCode.ShouldBe(HttpStatusCode.MethodNotAllowed);
+        exception.Errors.ShouldHaveSingleItem().ShouldBe(
+            new ControlMError("Method Not Allowed", Code: "405", Uri: "/config/servers"));
+    }
+
     [Test]
     public async Task Another_failure_status_throws_the_api_exception_with_every_entry()
     {
