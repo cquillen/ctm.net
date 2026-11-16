@@ -40,6 +40,13 @@ public sealed class RequestJournal
     /// <returns>The number of requests routed to the operation so far.</returns>
     public int Count(Operation operation) => Entries.Count(entry => entry.Operation == operation);
 
+    /// <summary>
+    /// The entries for requests that matched no operation, in the order they arrived: an unknown path, inside or outside
+    /// <c>/automation-api</c>, answered 404, and a wrong method on a real path, answered 405. Assert it is empty to show
+    /// an application called nothing that does not exist.
+    /// </summary>
+    public IReadOnlyList<JournalEntry> Unmatched => throw new NotImplementedException();
+
     internal int Admit()
     {
         lock (_lock)

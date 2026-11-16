@@ -19,4 +19,18 @@ public sealed class RefusedAndUnmatchedTests
         entry.Status.ShouldBe(401);
         simulator.Journal.Count(Operation.GetServers).ShouldBe(1);
     }
+
+    [Test]
+    public async Task An_unknown_path_under_the_api_is_unmatched()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        using var http = simulator.CreateHttpClient();
+
+        using var response = await http.GetAsync(new Uri("/automation-api/config/nowhere", UriKind.Relative));
+
+        var entry = simulator.Journal.Unmatched.ShouldHaveSingleItem();
+        entry.Operation.ShouldBeNull();
+        entry.Path.ShouldBe("/automation-api/config/nowhere");
+        entry.Status.ShouldBe(404);
+    }
 }
