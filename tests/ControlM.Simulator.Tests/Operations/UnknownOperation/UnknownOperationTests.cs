@@ -33,4 +33,16 @@ public sealed class UnknownOperationTests
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         (await response.Content.ReadAsStringAsync()).ShouldEqualJson(Fixture);
     }
+
+    [Test]
+    public async Task A_path_outside_the_api_gets_the_same_404_with_its_whole_path()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        using var http = simulator.CreateHttpClient();
+
+        using var response = await http.GetAsync(new Uri("/no/such/path", UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await response.Content.ReadAsStringAsync()).ShouldEqualJson(Fixture);
+    }
 }
