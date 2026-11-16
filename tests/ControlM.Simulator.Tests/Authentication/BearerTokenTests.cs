@@ -91,6 +91,29 @@ public sealed class BearerTokenTests
             JsonFixture.Load("Authentication", "ApiKey", "GetServers.invalid-bearer-token.json"));
     }
 
+    [Test]
+    public async Task Expiring_every_session_refuses_each_token_it_ended()
+    {
+        await using var simulator = await StartWithUserAsync(new FakeTimeProvider());
+        using var http = simulator.CreateHttpClient();
+        await LogInAsync(http);
+        await LogInAsync(http);
+
+        simulator.Credentials.ExpireSessions();
+        using var first = await GetServersWithTokenAsync(http, "SIMTOKEN1");
+        using var second = await GetServersWithTokenAsync(http, "SIMTOKEN2");
+
+        await ShouldBeInvalidTokenAsync(first);
+        await ShouldBeInvalidTokenAsync(second);
+    }
+
+    private static async Task ShouldBeInvalidTokenAsync(HttpResponseMessage response)
+    {
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await response.Content.ReadAsStringAsync()).ShouldEqualJson(
+            JsonFixture.Load("Authentication", "ApiKey", "GetServers.invalid-bearer-token.json"));
+    }
+
     private static async Task<ControlMSimulator> StartWithUserAsync(TimeProvider time)
     {
         var simulator = await ControlMSimulator.StartAsync(o =>
