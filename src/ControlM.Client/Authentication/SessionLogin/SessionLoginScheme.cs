@@ -23,8 +23,8 @@ internal sealed class SessionLoginScheme(
 
     public async ValueTask ApplyAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        _token ??= await LoginAsync(cancellationToken);
-        request.Headers.Authorization = new AuthenticationHeaderValue(AuthenticationScheme, _token);
+        var token = _token ?? await ReplaceTokenAsync(refusedToken: null, cancellationToken);
+        request.Headers.Authorization = new AuthenticationHeaderValue(AuthenticationScheme, token);
     }
 
     public async ValueTask<bool> TryRecoverAsync(HttpRequestMessage refused, CancellationToken cancellationToken)
