@@ -3,7 +3,6 @@ using ControlM.Client.Operations;
 using ControlM.Simulator.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace ControlM.Simulator.Authentication.Logout;
@@ -16,8 +15,9 @@ internal static class LogoutEndpoint
         routes.MapMethods(
             Operation.Path,
             [Operation.Method.Method],
-            ([FromHeader(Name = ApiKeyScheme.HeaderName)] string? apiKey, [FromHeader(Name = "Authorization")] string? authorization) =>
-                Answer(credentials.Logout(apiKey, authorization)));
+            (HttpRequest request) => Answer(credentials.Logout(
+                request.Headers[ApiKeyScheme.HeaderName].FirstOrDefault(),
+                request.Headers.Authorization.FirstOrDefault())));
 
     private static IResult Answer(LogoutOutcome outcome)
     {
@@ -26,6 +26,6 @@ internal static class LogoutEndpoint
             return CredentialFailureEndpoint.Answer(failure);
         }
 
-        return Results.Json(LogoutResponse.Success(outcome.Session!), SimulatorJson.Options);
+        return Results.Json(LogoutResponse.Success(outcome.Credential!), SimulatorJson.Options);
     }
 }
