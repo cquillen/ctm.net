@@ -8,6 +8,9 @@ namespace ControlM.Simulator.Authentication;
 public sealed class CredentialStore
 {
     private readonly ConcurrentDictionary<string, bool> _apiKeys = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, string> _users = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, bool> _sessions = new(StringComparer.Ordinal);
+    private readonly SessionTokenSequence _tokens = new();
 
     /// <summary>
     /// Seeds an API key, so a request that sends it in <c>x-api-key</c> is accepted, unless the request also carries an
@@ -21,7 +24,14 @@ public sealed class CredentialStore
     /// </summary>
     /// <param name="username">The user name, as a login sends it.</param>
     /// <param name="password">The user's password.</param>
-    public void AddUser(string username, string password) => throw new NotImplementedException();
+    public void AddUser(string username, string password) => _users[username] = password;
+
+    internal string Login(string username, string password)
+    {
+        var token = _tokens.Next();
+        _sessions[token] = true;
+        return token;
+    }
 
     internal CredentialFailure? Check(string? apiKey, bool hasAuthorizationHeader)
     {
