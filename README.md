@@ -24,6 +24,24 @@ dotnet test
 dotnet format
 ```
 
+## Running the conformance suite against a real server
+
+`tests/ControlM.Conformance.Tests` runs against the in-process simulator unless a `CTM_CONFORMANCE_` variable is set. Setting any of them switches it to a real Control-M server; CI never does. [Requirements section 7](docs/requirements.md#7-fidelity-and-tests) lists the variables and the rules.
+
+```sh
+export CTM_CONFORMANCE_ENDPOINT=https://<host>:8443/automation-api
+export CTM_CONFORMANCE_USERNAME=<user>
+export CTM_CONFORMANCE_PASSWORD=<password>
+dotnet test --project tests/ControlM.Conformance.Tests
+```
+
+Use `CTM_CONFORMANCE_API_KEY` instead of the user name and password to authenticate with an API key. Exactly one credential may be set.
+
+- Simulator-only tests show as skipped.
+- Until certificate trust is configurable, the server's certificate must already be trusted by the machine.
+- Later tests order and deploy into the folder named by `CTM_CONFORMANCE_FOLDER` on the server and host named by `CTM_CONFORMANCE_SERVER` and `CTM_CONFORMANCE_HOST`. Point them at a folder that exists for this purpose.
+- Remove every real name before pasting output into an issue; this repository is public.
+
 ## Layout
 
 | Path | Contents |
