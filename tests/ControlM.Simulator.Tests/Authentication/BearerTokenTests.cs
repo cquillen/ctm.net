@@ -107,6 +107,22 @@ public sealed class BearerTokenTests
         await ShouldBeInvalidTokenAsync(second);
     }
 
+    [Test]
+    public async Task Expiring_one_session_refuses_its_token_and_leaves_the_others()
+    {
+        await using var simulator = await StartWithUserAsync(new FakeTimeProvider());
+        using var http = simulator.CreateHttpClient();
+        await LogInAsync(http);
+        await LogInAsync(http);
+
+        simulator.Credentials.ExpireSession("SIMTOKEN1");
+        using var expired = await GetServersWithTokenAsync(http, "SIMTOKEN1");
+        using var other = await GetServersWithTokenAsync(http, "SIMTOKEN2");
+
+        await ShouldBeInvalidTokenAsync(expired);
+        other.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
     private static async Task ShouldBeInvalidTokenAsync(HttpResponseMessage response)
     {
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
