@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using ControlM.Client.Errors;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 
@@ -36,6 +37,17 @@ public sealed class ApiKeyTests
         await client.SendAsync<JsonElement>(HttpMethod.Get, "/config/servers");
 
         stub.Requests[^1].Headers.GetValueOrDefault("x-api-key").ShouldBe([TestClient.ApiKey]);
+    }
+
+    [Test]
+    public async Task A_call_answered_401_is_not_sent_again()
+    {
+        var stub = StubHandler.Returning(HttpStatusCode.Unauthorized, """{"errors":[{"message":"Unauthenticated request"}]}""");
+        var client = TestClient.Create(stub);
+
+        await Should.ThrowAsync<ControlMAuthenticationException>(() => client.SendAsync(HttpMethod.Get, "/config/servers"));
+
+        stub.Requests.ShouldHaveSingleItem();
     }
 
     private sealed class ResendingHandler : DelegatingHandler
