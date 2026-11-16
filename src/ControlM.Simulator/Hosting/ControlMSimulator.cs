@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using ControlM.Client;
 using ControlM.Simulator.Authentication;
+using ControlM.Simulator.Authentication.Login;
+using ControlM.Simulator.Authentication.Logout;
 using ControlM.Simulator.Operations;
 using ControlM.Simulator.Operations.UnknownOperation;
 using ControlM.Simulator.Topology.GetServers;
@@ -30,7 +32,8 @@ public sealed class ControlMSimulator : IAsyncDisposable
     }
 
     /// <summary>
-    /// The credentials this instance accepts. Seed one here to send it over a raw <see cref="HttpClient"/>.
+    /// The credentials this instance accepts: API keys, users and their sessions. Seed a key here to send it over a raw
+    /// <see cref="HttpClient"/>, or a user for a client created with <c>o =&gt; o.UseSessionLogin(...)</c>.
     /// </summary>
     public CredentialStore Credentials { get; }
 
@@ -50,14 +53,21 @@ public sealed class ControlMSimulator : IAsyncDisposable
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseTestServer();
         var app = builder.Build();
-        var credentials = new CredentialStore();
+        var credentials = new CredentialStore(options.TimeProvider, options.SessionLifetime);
+        MapSessionOperations(app.MapGroup(ApiPath.Base), credentials);
         MapOperations(app.MapGroup(ApiPath.Base).AddEndpointFilter(new CredentialFilter(credentials)));
         UnknownOperationEndpoint.Map(app).AddEndpointFilter(new WrongMethodFilter(app.Services.GetRequiredService<EndpointDataSource>()));
         await app.StartAsync(cancellationToken);
         return new ControlMSimulator(app, credentials);
     }
 
-    // The one registration of each implemented operation.
+    // The one registration of each implemented operation. The session operations check no credential of their own.
+    private static void MapSessionOperations(IEndpointRouteBuilder api, CredentialStore credentials)
+    {
+        LoginEndpoint.Map(api, credentials);
+        LogoutEndpoint.Map(api, credentials);
+    }
+
     private static void MapOperations(IEndpointRouteBuilder api) => GetServersEndpoint.Map(api);
 
     /// <summary>

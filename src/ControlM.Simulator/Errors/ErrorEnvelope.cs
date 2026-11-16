@@ -9,14 +9,20 @@ internal static class ErrorEnvelope
     public static ErrorList MethodNotAllowed(string uri) =>
         new([new ControlMError("Method Not Allowed", Code: "405", Uri: uri)]);
 
-    public static ErrorList NoCredential() => Unauthenticated("Unauthenticated request: No authentication header was provided");
+    public static ErrorList NoCredential() => MessageOnly("Unauthenticated request: No authentication header was provided");
 
-    public static ErrorList InvalidOrExpiredToken() => Unauthenticated("User not found. Session token is invalid or expired.");
+    public static ErrorList BothCredentialHeaders() =>
+        MessageOnly("Unauthenticated request: Request cannot contain both x-api-key and authorization headers");
 
-    public static ErrorList UnknownApiKey() => Unauthenticated(UnknownApiKeyMessage);
+    public static ErrorList InvalidOrExpiredToken() => MessageOnly("User not found. Session token is invalid or expired.");
 
-    // Assumed, requirements section 4.8: no API token was available to probe a real server with.
-    private static string UnknownApiKeyMessage => "Invalid API token.";
+    public static ErrorList UnknownApiKey() => MessageOnly("Cannot validate token value, decode failed");
 
-    private static ErrorList Unauthenticated(string message) => new([new ControlMError(message)]);
+    public static ErrorList IncorrectUsernameOrPassword() => MessageOnly("Failed to login: Incorrect username or password");
+
+    public static ErrorList LoginFailed() => MessageOnly("Failed to login: Login failed.");
+
+    public static ErrorList InvalidLoginBody() => MessageOnly("Failed to login: Invalid request body");
+
+    private static ErrorList MessageOnly(string message) => new([new ControlMError(message)]);
 }

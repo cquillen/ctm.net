@@ -1,0 +1,7 @@
+{
+  "errors": [
+    {
+      "message": "Unauthenticated request: Request cannot contain both x-api-key and authorization headers"
+    }
+  ]
+}

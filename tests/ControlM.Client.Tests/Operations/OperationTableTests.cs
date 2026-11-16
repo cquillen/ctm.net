@@ -10,4 +10,16 @@ public sealed class OperationTableTests
     {
         Operation.GetServers.ShouldBe(new Operation("GetServers", HttpMethod.Get, "/config/servers"));
     }
+
+    [Test]
+    public void Login_is_a_post_of_session_login()
+    {
+        Operation.Login.ShouldBe(new Operation("Login", HttpMethod.Post, "/session/login"));
+    }
+
+    [Test]
+    public void Logout_is_a_post_of_session_logout()
+    {
+        Operation.Logout.ShouldBe(new Operation("Logout", HttpMethod.Post, "/session/logout"));
+    }
 }

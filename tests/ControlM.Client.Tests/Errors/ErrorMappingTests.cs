@@ -23,11 +23,12 @@ public sealed class ErrorMappingTests
         exception.Errors.ShouldHaveSingleItem().ShouldBe(new ControlMError("Not Found", Code: "404", Uri: "/no/such/path"));
     }
 
-    // The unknown API key fixture is assumed (requirements section 4.8); the other two were observed.
     [Test]
     [Arguments("GetServers.no-credential.json", "Unauthenticated request: No authentication header was provided")]
     [Arguments("GetServers.invalid-bearer-token.json", "User not found. Session token is invalid or expired.")]
-    [Arguments("GetServers.unknown-api-key.json", "Invalid API token.")]
+    [Arguments(
+        "GetServers.both-headers.json",
+        "Unauthenticated request: Request cannot contain both x-api-key and authorization headers")]
     public async Task A_401_throws_the_authentication_exception_with_its_entry(string fixture, string message)
     {
         var stub = StubHandler.Returning(HttpStatusCode.Unauthorized, JsonFixture.Load("Authentication", "ApiKey", fixture));
@@ -38,6 +39,22 @@ public sealed class ErrorMappingTests
 
         exception.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         exception.Errors.ShouldHaveSingleItem().ShouldBe(new ControlMError(message));
+    }
+
+    [Test]
+    public async Task An_unknown_api_key_throws_the_api_exception_with_status_400()
+    {
+        var stub = StubHandler.Returning(
+            HttpStatusCode.BadRequest,
+            JsonFixture.Load("Authentication", "ApiKey", "GetServers.unknown-api-key.json"));
+        var client = TestClient.Create(stub);
+
+        var exception = await Should.ThrowAsync<ControlMApiException>(
+            () => client.SendAsync<JsonElement>(HttpMethod.Get, "/config/servers"));
+
+        exception.ShouldNotBeOfType<ControlMAuthenticationException>();
+        exception.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        exception.Errors.ShouldHaveSingleItem().ShouldBe(new ControlMError("Cannot validate token value, decode failed"));
     }
 
     [Test]

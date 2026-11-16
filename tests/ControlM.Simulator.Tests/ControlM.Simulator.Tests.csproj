@@ -1,6 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <Import Project="..\Fixtures\Fixtures.props" />
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\ControlM.Simulator\ControlM.Simulator.csproj" />
   </ItemGroup>
 </Project>

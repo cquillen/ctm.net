@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/ControlM.Client.Sample/ControlM.Client.Sample.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/ControlM.Client/ControlM.Client.csproj" />
     <Project Path="src/ControlM.Simulator/ControlM.Simulator.csproj" />
