@@ -63,7 +63,7 @@ Some areas hold what every operation shares:
 | --- | --- | --- |
 | `Serialization` | Client | The one set of JSON options for every request and response body. |
 | `Serialization` | Simulator | The one set of JSON options for every response body the simulator writes. |
-| `Operations` | Client | The operation table: the name, method and path of every implemented operation. |
+| `Operations` | Client | The operation table: the name, method and path of every implemented operation, and how a path relative to the endpoint becomes a request URL. |
 | `Operations` | Simulator | The known operations the simulator does not implement and their 501 responses, the 404 for an unknown operation, and the 405 for a wrong method on a real path. |
 | `Errors` | Client | The `ErrorList` envelope and the exceptions it maps to. |
 | `Errors` | Simulator | Building the `ErrorList` envelope as data, with the client's types. The endpoint that answers writes it. |
@@ -174,7 +174,7 @@ Session login:
 - It keeps no clock for the token. It logs in again only when a request is answered 401, and then resends that request once; a second 401 reaches the send path. Request content is buffered before the first send so that it can be sent again.
 - Calls that are answered 401 at the same time share one login. A call whose 401 came from a token that has already been replaced resends with the new token without logging in.
 - A failed login, first or repeated, is not retried.
-- Login and logout are sent through an `HttpClient` of their own, with the same primary handler and Capture but neither Retry nor Authentication.
+- Login and logout are sent through the client's own named `HttpClient`, created from `IHttpClientFactory`, so they get the same primary handler and Capture as every other request, including a primary handler the consumer configured. They carry a request option that the Authentication handler passes through without applying a credential, and Retry never retries them, because both are `POST`s.
 - Disposing the client's service provider logs out if a token is held. Logout is best effort: any failure is swallowed, nothing is retried, and disposal never throws.
 
 ## 4. Simulator
@@ -303,7 +303,7 @@ When the public documentation and the Python client do not settle a detail, choo
 | A seeded API key beside an `Authorization` header | The same 401 as the observed unknown key beside a valid token: the check is on which headers are present |
 | An `Authorization` header that is not a live bearer token | The invalid or expired token message, whatever the header's scheme |
 | `POST /session/login` with credential headers | They are ignored, even both at once |
-| A login body that is not JSON | 400, with one error entry |
+| A login body that is not a JSON object | 400, with one error entry, `Failed to login: Invalid request body`. A JSON array counts as not an object; the JSON literal `null` counts as a body without `username` or `password`. The `Content-Type` of a login body is not checked |
 | The user name in a login response | Echoed exactly as sent |
 | `POST /session/logout` with only an API key | 200, with the key in the message where a token would be; nothing ends |
 | A request with no credential and an invalid body | 401, not 400: the credential is checked before the body |
