@@ -20,4 +20,17 @@ public sealed class UnknownOperationTests
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         (await response.Content.ReadAsStringAsync()).ShouldEqualJson(Fixture);
     }
+
+    [Test]
+    public async Task Another_method_on_an_unknown_path_gets_the_same_404()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        using var http = simulator.CreateHttpClient();
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri("/automation-api/no/such/path", UriKind.Relative));
+
+        using var response = await http.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await response.Content.ReadAsStringAsync()).ShouldEqualJson(Fixture);
+    }
 }
