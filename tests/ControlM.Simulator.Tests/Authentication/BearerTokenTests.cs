@@ -10,7 +10,7 @@ namespace ControlM.Simulator.Tests.Authentication;
 
 public sealed class BearerTokenTests
 {
-    private static readonly TimeSpan s_lifetime = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan _lifetime = TimeSpan.FromMinutes(10);
 
     private static Uri GetServers => new("/automation-api/config/servers", UriKind.Relative);
 
@@ -50,7 +50,7 @@ public sealed class BearerTokenTests
         using var http = simulator.CreateHttpClient();
         await LogInAsync(http);
 
-        time.Advance(s_lifetime - TimeSpan.FromTicks(1));
+        time.Advance(_lifetime - TimeSpan.FromTicks(1));
         using var response = await GetServersWithTokenAsync(http, "SIMTOKEN1");
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -63,11 +63,11 @@ public sealed class BearerTokenTests
         await using var simulator = await StartWithUserAsync(time);
         using var http = simulator.CreateHttpClient();
         await LogInAsync(http);
-        time.Advance(s_lifetime - TimeSpan.FromTicks(1));
+        time.Advance(_lifetime - TimeSpan.FromTicks(1));
         using var extending = await GetServersWithTokenAsync(http, "SIMTOKEN1");
         extending.EnsureSuccessStatusCode();
 
-        time.Advance(s_lifetime - TimeSpan.FromTicks(1));
+        time.Advance(_lifetime - TimeSpan.FromTicks(1));
         using var response = await GetServersWithTokenAsync(http, "SIMTOKEN1");
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -81,7 +81,7 @@ public sealed class BearerTokenTests
         using var http = simulator.CreateHttpClient();
         await LogInAsync(http);
 
-        time.Advance(s_lifetime);
+        time.Advance(_lifetime);
         using var response = await GetServersWithTokenAsync(http, "SIMTOKEN1");
 
         await ShouldBeInvalidTokenAsync(response);
@@ -144,7 +144,7 @@ public sealed class BearerTokenTests
         var simulator = await ControlMSimulator.StartAsync(o =>
         {
             o.TimeProvider = time;
-            o.SessionLifetime = s_lifetime;
+            o.SessionLifetime = _lifetime;
         });
         simulator.Credentials.AddUser("USER1", "PASSWORD1");
         return simulator;
