@@ -16,9 +16,12 @@ internal static class ApiFailure
     {
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         var (errors, responseBody) = ContentOf(body);
-        return response.StatusCode == HttpStatusCode.NotFound
-            ? new ControlMNotFoundException(errors, responseBody, method, path, operation)
-            : new ControlMApiException(response.StatusCode, errors, responseBody, method, path, operation);
+        return response.StatusCode switch
+        {
+            HttpStatusCode.Unauthorized => new ControlMAuthenticationException(errors, responseBody, method, path, operation),
+            HttpStatusCode.NotFound => new ControlMNotFoundException(errors, responseBody, method, path, operation),
+            _ => new ControlMApiException(response.StatusCode, errors, responseBody, method, path, operation),
+        };
     }
 
     private static (IReadOnlyList<ControlMError> Errors, string? ResponseBody) ContentOf(string body) =>
