@@ -4,9 +4,8 @@ using Shouldly;
 
 namespace ControlM.Simulator.Tests;
 
-// Enforces "ASP.NET Core stays at the edge of the simulator" in docs/conventions.md. It reads signatures only:
-// base types, interfaces, fields, properties, events, parameters, return types and attributes. It does not read
-// method bodies, so ASP.NET Core used only inside a method body is not caught.
+// Enforces "ASP.NET Core stays at the edge of the simulator" in docs/conventions.md. It does not read method
+// bodies, so ASP.NET Core used only inside a method body is not caught.
 public sealed class AspNetCoreBoundaryTests
 {
     private const string _hostingNamespace = "ControlM.Simulator.Hosting";
