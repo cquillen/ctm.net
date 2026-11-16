@@ -19,6 +19,8 @@ The simulator has two audiences: automated tests (in-process, deterministic, par
 | `ControlM.SpecCheck` | Library | Compares the client and simulator with an OpenAPI document |
 | `ControlM.Client.Tests`, `ControlM.Simulator.Tests`, `ControlM.Conformance.Tests` | Tests | TUnit on Microsoft.Testing.Platform, Shouldly |
 
+Third-party dependencies: TUnit and Shouldly, in the test projects only. Everything else comes from the .NET base libraries and Microsoft's own packages.
+
 Structural rules:
 
 - Contract types live inside `ControlM.Client`; the simulator depends on the client. There is no separate contracts project.
@@ -39,6 +41,17 @@ The code, the namespaces and the public API are divided into five areas. The nam
 | `Orders` | Asking Control-M to run something. To *order* a job or folder is to place an instance of it into the active environment so that it runs. It does not mean putting jobs in sequence. An order returns a run ID that tracks what it started. | Run |
 | `Jobs` | Job instances in the active environment: their status, the actions an operator can take on them, and their output and log. | Run |
 | `Topology` | What exists to run jobs on: servers, agents and host groups. | Config |
+
+The simulator has further areas of its own, which the client does not expose:
+
+| Area | Meaning |
+| --- | --- |
+| `JobTypes` | One unit per supported job type, holding how its definition is parsed and how it behaves when run. |
+| `Journal` | The record of every request the simulator received. |
+| `Faults` | Injected API failures and stubbed responses. |
+| `Scenarios` | Scenario files: the control calls written as data. |
+| `VirtualFiles` | The per-host set of file paths that file watcher jobs observe. |
+| `Hosting` | The in-process and standalone hosts, and the `/__sim/` control API. |
 
 Contract types, client methods and simulator behavior exist only for the operations below. Full API coverage is not a goal.
 

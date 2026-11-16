@@ -26,9 +26,14 @@ The rules for writing code here are in `docs/conventions.md`, imported in full b
 
 @docs/conventions.md
 
-## Empty test projects
+## Not yet in place
 
-The test projects start empty, so `tests/Directory.Build.props` passes `--ignore-exit-code 8` to tolerate a run that finds no tests. **Remove that line in the change that adds the first real test.**
+- **Zero-tests setting.** The test projects start empty, so `tests/Directory.Build.props` passes `--ignore-exit-code 8` to tolerate a run that finds no tests. Remove that line in the change that adds the first real test.
+- **ASP.NET Core boundary test.** The conventions name a reflection test that keeps ASP.NET Core at the edge of the simulator. Write it, test first, in the change that adds the first simulator endpoint.
+
+## Pull requests
+
+Use `.github/pull_request_template.md` and fill in every section. "New dependencies" comes first so an added package cannot be missed.
 
 ## What may enter the repository
 
