@@ -196,6 +196,23 @@ public sealed class SessionLoginTests
         stub.Requests[^2..].Select(r => r.Headers["Authorization"].Single()).ShouldBe(["Bearer SIMTOKEN1", "Bearer SIMTOKEN1"]);
     }
 
+    [Test]
+    public async Task A_resent_call_carries_the_body_bytes_of_the_first_send()
+    {
+        const string samplePath = "/automation-api/sample/path";
+        var stub = StubHandler.Returning(HttpStatusCode.OK, "[]")
+            .AnsweringInTurn(_loginPath, (HttpStatusCode.OK, LoginSuccess), (HttpStatusCode.OK, SecondLoginSuccess))
+            .AnsweringInTurn(samplePath, (HttpStatusCode.Unauthorized, InvalidToken), (HttpStatusCode.OK, "{}"));
+        var client = TestClient.CreateWithSessionLogin(stub);
+
+        await client.SendAsync(HttpMethod.Post, "/sample/path", new SerializationCounter());
+
+        var sent = stub.Requests.Where(r => r.Uri.AbsolutePath == samplePath).Select(r => r.Body).ToList();
+        sent.Count.ShouldBe(2);
+        sent[0].ShouldEqualJson("""{"serializations":1}""");
+        sent[1].ShouldEqualJson("""{"serializations":1}""");
+    }
+
     private static string LoginSuccess => LoginFixture("Login.success.json");
 
     private static string SecondLoginSuccess => LoginSuccess.Replace("SIMTOKEN1", "SIMTOKEN2", StringComparison.Ordinal);
@@ -203,4 +220,12 @@ public sealed class SessionLoginTests
     private static string InvalidToken => JsonFixture.Load("Authentication", "ApiKey", "GetServers.invalid-bearer-token.json");
 
     private static string LoginFixture(string fileName) => JsonFixture.Load("Authentication", "Login", fileName);
+
+    // Serializes differently each time, so a resend shows whether the body was serialized again.
+    internal sealed class SerializationCounter
+    {
+        private int _serializations;
+
+        public int Serializations => ++_serializations;
+    }
 }
