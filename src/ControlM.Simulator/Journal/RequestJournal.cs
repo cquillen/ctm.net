@@ -18,7 +18,7 @@ public sealed class RequestJournal
     /// <summary>
     /// A snapshot of every entry, in the order the requests arrived. Requests that arrive later do not change it.
     /// </summary>
-    public IReadOnlyList<JournalEntry> Entries => throw new NotImplementedException();
+    public IReadOnlyList<JournalEntry> Entries => [.. _entries];
 
     /// <summary>
     /// Counts every request routed to <paramref name="operation"/>, whatever it was answered, so a request refused for
