@@ -32,8 +32,20 @@ internal sealed class SessionLoginScheme(
             return;
         }
 
+        try
+        {
+            await LogoutAsync(_token);
+        }
+        catch (Exception)
+        {
+            // Disposal never throws (docs/requirements.md section 3.4): a session the server keeps is its to expire.
+        }
+    }
+
+    private async Task LogoutAsync(string token)
+    {
         using var request = SessionRequest(Operation.Logout);
-        request.Headers.Authorization = new AuthenticationHeaderValue(AuthenticationScheme, _token);
+        request.Headers.Authorization = new AuthenticationHeaderValue(AuthenticationScheme, token);
         using var http = httpClientFactory.CreateClient(httpClientName);
         using var response = await http.SendAsync(request, CancellationToken.None);
     }
