@@ -1,4 +1,5 @@
 using ControlM.Client.Authentication;
+using ControlM.Client.Authentication.SessionLogin;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -45,8 +46,12 @@ public static class ControlMClientServiceCollectionExtensions
                 $"The user name and password given to {nameof(ControlMClientOptions)}.{nameof(ControlMClientOptions.UseSessionLogin)} must not be empty or whitespace.");
 
         // A singleton, for the reason in docs/requirements.md section 3.4.
-        services.TryAddSingleton<ICredentialScheme>(
-            provider => provider.GetRequiredService<IOptions<ControlMClientOptions>>().Value.ApiKey!);
+        services.TryAddSingleton(CredentialSchemeOf);
         return ControlMPipeline.Compose(services.AddHttpClient<IControlMClient, ControlMClient>());
     }
+
+    private static ICredentialScheme CredentialSchemeOf(IServiceProvider provider) =>
+        provider.GetRequiredService<IOptions<ControlMClientOptions>>().Value.ApiKey is { } apiKey
+            ? apiKey
+            : new SessionLoginScheme();
 }
