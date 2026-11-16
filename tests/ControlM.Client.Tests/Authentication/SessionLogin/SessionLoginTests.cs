@@ -9,7 +9,7 @@ namespace ControlM.Client.Tests.Authentication.SessionLogin;
 
 public sealed class SessionLoginTests
 {
-    private const string LoginPath = "/automation-api/session/login";
+    private const string _loginPath = "/automation-api/session/login";
 
     [Test]
     public void Resolving_the_client_sends_nothing()
@@ -24,7 +24,7 @@ public sealed class SessionLoginTests
     [Test]
     public async Task The_first_call_logs_in_through_the_primary_handler_then_sends_the_token_as_a_bearer_credential()
     {
-        var stub = StubHandler.Returning(HttpStatusCode.OK, "[]").Answering(LoginPath, HttpStatusCode.OK, LoginSuccess);
+        var stub = StubHandler.Returning(HttpStatusCode.OK, "[]").Answering(_loginPath, HttpStatusCode.OK, LoginSuccess);
         var client = TestClient.CreateWithSessionLogin(stub);
 
         await client.SendAsync<JsonElement>(HttpMethod.Get, "/config/servers");
@@ -44,13 +44,13 @@ public sealed class SessionLoginTests
     [Test]
     public async Task Later_calls_reuse_the_token_without_logging_in_again()
     {
-        var stub = StubHandler.Returning(HttpStatusCode.OK, "[]").Answering(LoginPath, HttpStatusCode.OK, LoginSuccess);
+        var stub = StubHandler.Returning(HttpStatusCode.OK, "[]").Answering(_loginPath, HttpStatusCode.OK, LoginSuccess);
         var client = TestClient.CreateWithSessionLogin(stub);
 
         await client.SendAsync<JsonElement>(HttpMethod.Get, "/config/servers");
         await client.SendAsync(HttpMethod.Post, "/sample/path");
 
-        stub.Requests.Count(r => r.Uri.AbsolutePath == LoginPath).ShouldBe(1);
+        stub.Requests.Count(r => r.Uri.AbsolutePath == _loginPath).ShouldBe(1);
         stub.Requests[^1].Headers.GetValueOrDefault("Authorization").ShouldBe(["Bearer SIMTOKEN1"]);
     }
 
@@ -58,7 +58,7 @@ public sealed class SessionLoginTests
     public async Task A_login_answered_401_throws_the_authentication_exception_for_the_login_and_sends_nothing_more()
     {
         var stub = StubHandler.Returning(HttpStatusCode.OK, "[]")
-            .Answering(LoginPath, HttpStatusCode.Unauthorized, LoginFixture("Login.unknown-user.json"));
+            .Answering(_loginPath, HttpStatusCode.Unauthorized, LoginFixture("Login.unknown-user.json"));
         var client = TestClient.CreateWithSessionLogin(stub);
 
         var exception = await Should.ThrowAsync<ControlMAuthenticationException>(
@@ -68,14 +68,14 @@ public sealed class SessionLoginTests
         exception.Method.ShouldBe(HttpMethod.Post);
         exception.Path.ShouldBe("/session/login");
         exception.Errors.ShouldHaveSingleItem().ShouldBe(new ControlMError("Failed to login: Incorrect username or password"));
-        stub.Requests.ShouldHaveSingleItem().Uri.AbsolutePath.ShouldBe(LoginPath);
+        stub.Requests.ShouldHaveSingleItem().Uri.AbsolutePath.ShouldBe(_loginPath);
     }
 
     [Test]
     public async Task A_login_answered_500_throws_the_api_exception_for_the_login_and_sends_nothing_more()
     {
         var stub = StubHandler.Returning(HttpStatusCode.OK, "[]")
-            .Answering(LoginPath, HttpStatusCode.InternalServerError, LoginFixture("Login.wrong-password.json"));
+            .Answering(_loginPath, HttpStatusCode.InternalServerError, LoginFixture("Login.wrong-password.json"));
         var client = TestClient.CreateWithSessionLogin(stub);
 
         var exception = await Should.ThrowAsync<ControlMApiException>(
@@ -85,7 +85,7 @@ public sealed class SessionLoginTests
         exception.Operation.ShouldBe(Operation.Login);
         exception.Path.ShouldBe("/session/login");
         exception.Errors.ShouldHaveSingleItem().ShouldBe(new ControlMError("Failed to login: Login failed."));
-        stub.Requests.ShouldHaveSingleItem().Uri.AbsolutePath.ShouldBe(LoginPath);
+        stub.Requests.ShouldHaveSingleItem().Uri.AbsolutePath.ShouldBe(_loginPath);
     }
 
     private static string LoginSuccess => LoginFixture("Login.success.json");
