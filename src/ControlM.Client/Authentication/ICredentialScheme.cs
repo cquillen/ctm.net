@@ -2,5 +2,5 @@ namespace ControlM.Client.Authentication;
 
 internal interface ICredentialScheme
 {
-    void Apply(HttpRequestMessage request);
+    ValueTask ApplyAsync(HttpRequestMessage request, CancellationToken cancellationToken);
 }
