@@ -23,7 +23,7 @@ internal static class LogoutEndpoint
     {
         if (outcome.Failure is { } failure)
         {
-            return Results.Json(failure.Body, SimulatorJson.Options, statusCode: (int)failure.StatusCode);
+            return CredentialFailureEndpoint.Answer(failure);
         }
 
         return Results.Json(LogoutResponse.Success(outcome.Session!), SimulatorJson.Options);
