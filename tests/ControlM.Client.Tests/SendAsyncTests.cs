@@ -52,6 +52,17 @@ public sealed class SendAsyncTests
     }
 
     [Test]
+    public async Task Without_a_body_no_content_is_sent()
+    {
+        var stub = StubHandler.Returning(HttpStatusCode.OK, "{}");
+        var client = TestClient.Create(stub);
+
+        await client.SendAsync<JsonElement>(HttpMethod.Post, "/sample/path");
+
+        stub.Requests.ShouldHaveSingleItem().Body.ShouldBeNull();
+    }
+
+    [Test]
     public async Task A_successful_response_is_deserialized_and_its_unknown_properties_are_ignored()
     {
         var stub = StubHandler.Returning(
