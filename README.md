@@ -37,7 +37,7 @@ dotnet format
 | `tests/ControlM.Conformance.Tests` | One suite written against the client interface, runnable against the simulator or a real server |
 | `tests/ControlM.SpecCheck.Tests` | Spec comparison tests |
 | `eng/` | Build and verification scripts |
-| `docs/` | Requirements |
+| `docs/` | [Requirements](docs/requirements.md) and [code conventions](docs/conventions.md) |
 
 Tests use [TUnit](https://tunit.dev) on Microsoft.Testing.Platform, with [Shouldly](https://docs.shouldly.org) for assertions.
 
