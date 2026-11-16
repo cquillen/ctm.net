@@ -75,6 +75,20 @@ public sealed class SendAsyncTests
         server.ShouldBe(new SampleServer("SERVER1", "Up"));
     }
 
+    [Test]
+    public async Task The_form_without_a_result_sends_the_request_and_reads_no_body()
+    {
+        var stub = StubHandler.Returning(HttpStatusCode.OK, "this body is not JSON");
+        var client = TestClient.Create(stub);
+
+        await client.SendAsync(HttpMethod.Post, "/sample/path?name=FOLDER1", new SampleRequest("FOLDER1", 3, null));
+
+        var request = stub.Requests.ShouldHaveSingleItem();
+        request.Method.ShouldBe(HttpMethod.Post);
+        request.Uri.AbsoluteUri.ShouldBe("https://host1.test:8443/automation-api/sample/path?name=FOLDER1");
+        request.Body.ShouldNotBeNull();
+    }
+
     internal sealed record SampleServer(string Name, string State);
 
     internal sealed record SampleRequest(string FolderName, int RetryCount, string? Description);
