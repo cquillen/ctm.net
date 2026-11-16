@@ -24,7 +24,7 @@ public class ControlMApiException : Exception
         HttpMethod method,
         string path,
         Operation? operation)
-        : base($"Control-M answered {(int)statusCode}.")
+        : base(MessageOf(statusCode, errors, method, path))
     {
         ArgumentNullException.ThrowIfNull(errors);
         ArgumentNullException.ThrowIfNull(method);
@@ -68,4 +68,10 @@ public class ControlMApiException : Exception
     /// made through <see cref="IControlMClient.SendAsync"/>.
     /// </summary>
     public Operation? Operation { get; }
+
+    private static string MessageOf(HttpStatusCode statusCode, IReadOnlyList<ControlMError>? errors, HttpMethod? method, string? path)
+    {
+        var call = $"Control-M answered {(int)statusCode} to {method} {path}";
+        return errors is { Count: > 0 } ? $"{call}: {errors[0].Message}" : $"{call}.";
+    }
 }
