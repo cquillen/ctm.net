@@ -6,18 +6,19 @@ namespace ControlM.Simulator.Hosting;
 
 // Runs after routing, to read the matched endpoint's operation, and around every endpoint and endpoint filter, to see
 // the status code each one answers.
-internal sealed class JournalRecording(RequestJournal journal)
+internal sealed class JournalRecording(RequestJournal journal, TimeProvider time)
 {
     public async Task InvokeAsync(HttpContext context, RequestDelegate next)
     {
         var request = context.Request;
+        var arrival = time.GetUtcNow();
         await next(context);
         journal.Record(new JournalEntry(
             context.GetEndpoint()?.Metadata.GetMetadata<Operation>(),
             request.Method,
             request.Path.Value ?? string.Empty,
             QueryWithoutMark(request.QueryString),
-            default,
+            arrival,
             context.Response.StatusCode));
     }
 
