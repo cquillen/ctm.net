@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using ControlM.Fixtures;
 using ControlM.Simulator.Hosting;
 using Shouldly;
@@ -99,6 +100,47 @@ public sealed class LoginTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await response.Content.ReadAsStringAsync()).ShouldEqualJson(LoginFixture("Login.success.json"));
+    }
+
+    [Test]
+    public async Task A_user_seeded_on_one_instance_cannot_log_in_to_another()
+    {
+        await using var seeded = await ControlMSimulator.StartAsync();
+        await using var other = await ControlMSimulator.StartAsync();
+        seeded.Credentials.AddUser("USER1", "PASSWORD1");
+        using var http = other.CreateHttpClient();
+
+        using var response = await http.PostAsync(Login, Json("""{"username":"USER1","password":"PASSWORD1"}"""));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await response.Content.ReadAsStringAsync()).ShouldEqualJson(LoginFixture("Login.unknown-user.json"));
+    }
+
+    [Test]
+    public async Task Tokens_are_numbered_from_one_on_each_instance()
+    {
+        await using var first = await ControlMSimulator.StartAsync();
+        await using var second = await ControlMSimulator.StartAsync();
+        first.Credentials.AddUser("USER1", "PASSWORD1");
+        second.Credentials.AddUser("USER1", "PASSWORD1");
+        using var firstHttp = first.CreateHttpClient();
+        using var secondHttp = second.CreateHttpClient();
+
+        string[] tokens =
+        [
+            await LogInAsync(firstHttp),
+            await LogInAsync(firstHttp),
+            await LogInAsync(secondHttp),
+        ];
+
+        tokens.ShouldBe(["SIMTOKEN1", "SIMTOKEN2", "SIMTOKEN1"]);
+    }
+
+    private static async Task<string> LogInAsync(HttpClient http)
+    {
+        using var response = await http.PostAsync(Login, Json("""{"username":"USER1","password":"PASSWORD1"}"""));
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return body.RootElement.GetProperty("token").GetString()!;
     }
 
     private static StringContent Json(string body) => new(body, Encoding.UTF8, "application/json");
