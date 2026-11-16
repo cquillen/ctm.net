@@ -149,7 +149,10 @@ A job action applied directly to the simulator, as an operator at a Control-M co
 A path that exists on an agent, with no content.
 
 **Journal**:
-The record of every request the simulator received on the Control-M API surface.
+The record of every request the simulator received, other than those to its control API.
+
+**Journal entry**:
+One request in the journal, with how it was answered: its operation, or none for an unknown operation, and the status code sent back.
 
 ### Spec comparison
 
