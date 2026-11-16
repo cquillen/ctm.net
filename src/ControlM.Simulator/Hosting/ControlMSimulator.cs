@@ -6,6 +6,7 @@ using ControlM.Simulator.Operations.UnknownOperation;
 using ControlM.Simulator.Topology.GetServers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -40,7 +41,7 @@ public sealed class ControlMSimulator : IAsyncDisposable
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseTestServer();
         var app = builder.Build();
-        MapOperations(app.MapGroup(ApiPath.Base));
+        MapOperations(app.MapGroup(ApiPath.Base).AddEndpointFilter(new CredentialFilter()));
         UnknownOperationEndpoint.Map(app);
         await app.StartAsync(cancellationToken);
         return new ControlMSimulator(app);
