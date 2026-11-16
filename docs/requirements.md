@@ -64,7 +64,7 @@ Some areas hold what every operation shares:
 | `Operations` | Client | The operation table: the name, method and path of every implemented operation. |
 | `Operations` | Simulator | The known operations the simulator does not implement and their 501 responses, and the 404 for an unknown operation. |
 | `Errors` | Client | The `ErrorList` envelope and the exceptions it maps to. |
-| `Errors` | Simulator | Writing the `ErrorList` envelope. |
+| `Errors` | Simulator | Building the `ErrorList` envelope as data, with the client's types. The endpoint that answers writes it. |
 | `Tls` | Client | Per-environment certificate trust. |
 | `Retry` | Client | Backoff for idempotent calls. |
 | `Capture` | Client | Writing sanitized requests and responses to disk. |
@@ -110,7 +110,7 @@ Both authentication schemes are supported: session login with a bearer token, an
 
 ### 3.2 Typed interface
 
-One root interface, `IControlMClient`, exposes four of the areas as properties, plus the low-level `SendAsync<T>` described below. Authentication is configured at registration (`services.AddControlMClient(o => ...)` with `UseSessionLogin` or `UseApiKey`) and is not part of the interface. The interface can be faked in the consumer's unit tests.
+One root interface, `IControlMClient`, exposes four of the areas as properties, plus the two low-level `SendAsync` members described below. Authentication is configured at registration (`services.AddControlMClient(o => ...)` with `UseSessionLogin` or `UseApiKey`) and is not part of the interface. The interface can be faked in the consumer's unit tests.
 
 `ControlMClientOptions` follows the standard .NET options pattern: the registration callback sets its properties, `services.AddControlMClient(o => o.Endpoint = endpoint)`, as `ControlMSimulator.StartAsync` does in section 5.2. `Endpoint` includes the `/automation-api` prefix, and a missing one fails when the client is first resolved.
 
@@ -138,11 +138,11 @@ Behavior:
 - `QueryJobsAsync` hides paging behind `IAsyncEnumerable<JobSnapshot>`. A `JobSnapshot` is a job instance's state at the time of the call. A 206 from `GET /run/jobs/status` is a partial result and is surfaced to the caller.
 - `BuildAsync` and `DeployAsync` build the multipart upload from an in-memory definition. `DeployAsync` follows a `pollId` through `GET /deploy/poll` to completion.
 - The server parameter is always sent as `server`, never `ctm`. A response that names it `ctm` is read.
-- A low-level `SendAsync<T>(method, path, body?)` calls any operation the typed interface does not cover, through the same authentication, retry, error mapping and capture pipeline. Its path is relative to the endpoint, may carry a query string, and gives the same URL with or without a leading slash, as the endpoint does with or without a trailing one.
+- A low-level `SendAsync<T>(method, path, body?)` calls any operation the typed interface does not cover and returns the response body as `T`. `SendAsync(method, path, body?)`, without `<T>`, does the same and reads no response body, for a call whose answer the caller does not need. Both go through the same authentication, retry, error mapping and capture pipeline. The path is relative to the endpoint, may carry a query string, and gives the same URL with or without a leading slash, as the endpoint does with or without a trailing one.
 
 ### 3.3 Errors
 
-- An API failure throws `ControlMApiException`, carrying the status code, every entry of the `ErrorList` body, the method and path, and the operation. A call made through `SendAsync<T>` has no operation. Subtypes: `ControlMAuthenticationException` (401 after one re-login) and `ControlMNotFoundException` (404).
+- An API failure throws `ControlMApiException`, carrying the status code, every entry of the `ErrorList` body, the method and path, and the operation. A call made through either `SendAsync` has no operation. Subtypes: `ControlMAuthenticationException` (401 after one re-login) and `ControlMNotFoundException` (404).
 - An error entry carries the server's `message` and, where the server sends them, `id`, `item`, `file`, `line`, `col`, `code` and `uri`. The first six come from the Python client; `code` and `uri` were observed on a real server.
 - The path the exception carries is the one the caller gave, relative to the endpoint and with its query string. Its message names the status code, the method, the path and the first error message.
 - A failure whose body is not an `ErrorList` still throws `ControlMApiException`, with no entries and the text of the body. A body counts as an `ErrorList` only when it parses as one and every entry has a message.
