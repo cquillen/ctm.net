@@ -13,10 +13,10 @@ public sealed partial record Operation
     /// <c>POST /session/login</c>: opens a session and returns its token. A client configured for session login sends
     /// it itself.
     /// </summary>
-    public static Operation Login => throw new NotImplementedException();
+    public static Operation Login { get; } = new(nameof(Login), HttpMethod.Post, "/session/login");
 
     /// <summary>
     /// <c>POST /session/logout</c>: ends the session of the token the request carries.
     /// </summary>
-    public static Operation Logout => throw new NotImplementedException();
+    public static Operation Logout { get; } = new(nameof(Logout), HttpMethod.Post, "/session/logout");
 }
