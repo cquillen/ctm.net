@@ -43,6 +43,31 @@ public sealed class LogoutOnDisposalTests
     }
 
     [Test]
+    public async Task Disposing_the_provider_synchronously_after_a_login_does_not_throw_and_sends_no_logout()
+    {
+        var stub = LoggedInStub()
+            .Answering(_logoutPath, HttpStatusCode.OK, Fixture("Logout", "Logout.success.json"));
+        var provider = TestClient.BuildWithSessionLogin(stub);
+        await provider.GetRequiredService<IControlMClient>().SendAsync<JsonElement>(HttpMethod.Get, "/config/servers");
+
+        Should.NotThrow(provider.Dispose);
+
+        stub.Requests.Select(r => r.Uri.AbsolutePath).ShouldBe([_loginPath, "/automation-api/config/servers"]);
+    }
+
+    [Test]
+    public void Disposing_the_provider_synchronously_without_a_call_does_not_throw()
+    {
+        var stub = StubHandler.Returning(HttpStatusCode.OK, "[]");
+        var provider = TestClient.BuildWithSessionLogin(stub);
+        provider.GetRequiredService<IControlMClient>();
+
+        Should.NotThrow(provider.Dispose);
+
+        stub.Requests.ShouldBeEmpty();
+    }
+
+    [Test]
     [Arguments(HttpStatusCode.Unauthorized, """{"errors":[{"message":"User not found. Session token is invalid or expired."}]}""")]
     [Arguments(HttpStatusCode.InternalServerError, """{"errors":[{"message":"Internal error"}]}""")]
     public async Task A_logout_answered_with_an_error_is_swallowed_and_makes_no_login(HttpStatusCode status, string body)
