@@ -56,7 +56,11 @@ public sealed class ControlMSimulator : IAsyncDisposable
         var server = _app.GetTestServer();
         var services = new ServiceCollection();
         services
-            .AddControlMClient(o => o.Endpoint = new Uri(server.BaseAddress, ApiPath.Base))
+            .AddControlMClient(o =>
+            {
+                o.Endpoint = new Uri(server.BaseAddress, ApiPath.Base);
+                o.UseApiKey("SIMKEY1");
+            })
             .ConfigurePrimaryHttpMessageHandler(server.CreateHandler);
         var provider = services.BuildServiceProvider();
         _clientProviders.Add(provider);
