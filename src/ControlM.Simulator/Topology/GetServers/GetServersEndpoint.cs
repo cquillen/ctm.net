@@ -13,6 +13,5 @@ internal static class GetServersEndpoint
     public static void Map(IEndpointRouteBuilder routes) =>
         routes.MapMethods(Operation.Path, [Operation.Method.Method], Answer);
 
-    // There is no topology model yet, so every simulator has no servers.
     private static IResult Answer() => Results.Json(Array.Empty<object>(), SimulatorJson.Options);
 }
