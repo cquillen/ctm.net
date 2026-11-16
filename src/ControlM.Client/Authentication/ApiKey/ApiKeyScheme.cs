@@ -6,9 +6,13 @@ internal sealed class ApiKeyScheme(string? key) : ICredentialScheme
 
     public bool IsBlank => string.IsNullOrWhiteSpace(key);
 
-    public void Apply(HttpRequestMessage request)
+    public ValueTask ApplyAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         request.Headers.Remove(HeaderName);
         request.Headers.Add(HeaderName, key);
+        return ValueTask.CompletedTask;
     }
+
+    public ValueTask<bool> TryRecoverAsync(HttpRequestMessage refused, CancellationToken cancellationToken) =>
+        ValueTask.FromResult(false);
 }

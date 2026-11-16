@@ -10,14 +10,15 @@ public sealed class ApiKeyTests
 {
     [Test]
     [Category("SimulatorOnly")]
-    public async Task A_client_with_an_unknown_key_throws_the_authentication_exception()
+    public async Task A_client_with_an_unknown_key_throws_the_api_exception_with_status_400()
     {
         await using var simulator = await ControlMSimulator.StartAsync();
         var client = simulator.CreateClient(o => o.UseApiKey("APIKEY1"));
 
-        var exception = await Should.ThrowAsync<ControlMAuthenticationException>(
+        var exception = await Should.ThrowAsync<ControlMApiException>(
             () => client.SendAsync(Operation.GetServers.Method, Operation.GetServers.Path));
 
-        exception.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        exception.ShouldNotBeOfType<ControlMAuthenticationException>();
+        exception.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 }

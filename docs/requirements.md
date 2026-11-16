@@ -22,6 +22,8 @@ The simulator has two audiences: automated tests (in-process, deterministic, par
 
 Third-party dependencies: TUnit and Shouldly, in the test projects only. Everything else comes from the .NET base libraries and Microsoft's own packages.
 
+`Microsoft.Extensions.TimeProvider.Testing` (MIT), in `ControlM.Simulator.Tests` only, supplies the `FakeTimeProvider` through which those tests move the simulator's clock.
+
 One further dependency is expected and not yet chosen. Validating live responses against a spec schema (section 6, `--live`) needs a JSON Schema validator, which the base libraries do not have. The change that implements `--live` names the package here, with its license and the reason.
 
 Structural rules:
@@ -63,7 +65,7 @@ Some areas hold what every operation shares:
 | --- | --- | --- |
 | `Serialization` | Client | The one set of JSON options for every request and response body. |
 | `Serialization` | Simulator | The one set of JSON options for every response body the simulator writes. |
-| `Operations` | Client | The operation table: the name, method and path of every implemented operation. |
+| `Operations` | Client | The operation table: the name, method and path of every implemented operation, and how a path relative to the endpoint becomes a request URL. |
 | `Operations` | Simulator | The known operations the simulator does not implement and their 501 responses, the 404 for an unknown operation, and the 405 for a wrong method on a real path. |
 | `Errors` | Client | The `ErrorList` envelope and the exceptions it maps to. |
 | `Errors` | Simulator | Building the `ErrorList` envelope as data, with the client's types. The endpoint that answers writes it. |
@@ -174,8 +176,8 @@ Session login:
 - It keeps no clock for the token. It logs in again only when a request is answered 401, and then resends that request once; a second 401 reaches the send path. Request content is buffered before the first send so that it can be sent again.
 - Calls that are answered 401 at the same time share one login. A call whose 401 came from a token that has already been replaced resends with the new token without logging in.
 - A failed login, first or repeated, is not retried.
-- Login and logout are sent through an `HttpClient` of their own, with the same primary handler and Capture but neither Retry nor Authentication.
-- Disposing the client's service provider logs out if a token is held. Logout is best effort: any failure is swallowed, nothing is retried, and disposal never throws.
+- Login and logout are sent through the client's own named `HttpClient`, created from `IHttpClientFactory`, so they get the same primary handler and Capture as every other request, including a primary handler the consumer configured. They carry a request option that the Authentication handler passes through without applying a credential, and Retry never retries them, because both are `POST`s.
+- Disposing the client's service provider with `DisposeAsync`, as the Generic Host, ASP.NET Core and `await using` do, logs out if a token is held, after waiting for a login still in flight. Logout is best effort: any failure is swallowed, nothing is retried, and disposal never throws. A synchronous `Dispose` cannot log out without blocking on a task, so it only releases what the client holds and leaves the session for the server to expire at its idle timeout; it never throws or waits, even during a login. Whichever disposal comes first is the one that runs, and the other does nothing.
 
 ## 4. Simulator
 
@@ -199,7 +201,7 @@ The simulator reproduces the HTTP surface and observable behavior of the support
 
 - Users are seeded with a user name and password, and log in with `POST /session/login`. API keys are seeded and sent as `x-api-key`.
 - Session login issues a token, sent as `Authorization: Bearer`. Tokens come from a per-instance sequence: `SIMTOKEN1`, `SIMTOKEN2` and so on.
-- A session is an idle timeout, as BMC's administration guide documents: it expires `ControlMSimulatorOptions.SessionLifetime` (default 30 minutes) after its last authenticated request, read from the `TimeProvider`. A real server may expire a token up to 10 minutes late, and caps the timeout at 3 hours; neither is simulated. A session can be expired on demand (section 5.1).
+- A session is an idle timeout, as BMC's administration guide documents: it expires `ControlMSimulatorOptions.SessionLifetime` (default 30 minutes) after its last authenticated request, read from the `TimeProvider`. Login starts that time, and only a request that passes the credential check with the token restarts it, so an unknown path or a wrong method does not. A real server may expire a token up to 10 minutes late, and caps the timeout at 3 hours; neither is simulated. A session can be expired on demand (section 5.1).
 - Every implemented operation checks the credential, except the two session operations below. An unknown path and a wrong method do not: they answer 404 and 405 whatever the request carries.
 - The credential check looks first at which headers are present, then at their values. A failure returns one error entry with no `code` or `uri`:
 
@@ -303,9 +305,10 @@ When the public documentation and the Python client do not settle a detail, choo
 | A seeded API key beside an `Authorization` header | The same 401 as the observed unknown key beside a valid token: the check is on which headers are present |
 | An `Authorization` header that is not a live bearer token | The invalid or expired token message, whatever the header's scheme |
 | `POST /session/login` with credential headers | They are ignored, even both at once |
-| A login body that is not JSON | 400, with one error entry |
+| A login body that is not a JSON object | 400, with one error entry, `Failed to login: Invalid request body`. A JSON array counts as not an object; the JSON literal `null` counts as a body without `username` or `password`. The `Content-Type` of a login body is not checked |
 | The user name in a login response | Echoed exactly as sent |
 | `POST /session/logout` with only an API key | 200, with the key in the message where a token would be; nothing ends |
+| `POST /session/logout` with an `Authorization` header that is not a bearer token | 200, with the whole header value in the message where a token would be; nothing ends |
 | A request with no credential and an invalid body | 401, not 400: the credential is checked before the body |
 
 ## 5. Simulator control
@@ -431,7 +434,11 @@ dotnet run --project src/ControlM.Simulator.Tool -- spec-check --spec <file> [--
 - One assembly-level skip attribute skips every `SimulatorOnly` test whenever the target is a real server, including when its variables are incomplete, with a reason naming the target. No test filter is needed.
 - Until certificate trust is configurable (section 3.4), a real-server run reaches only an endpoint whose certificate the machine already trusts.
 - The [README](../README.md#running-the-conformance-suite-against-a-real-server) says how to run the suite against a real server.
-- `ControlM.Client.Sample` checks session login against a real server by hand, with the client as a consumer uses it. It prompts for the endpoint, user name and password, reading the password without echo, and takes nothing from the environment or files. It logs in, calls `GET /config/servers`, and logs out by disposing the service provider, printing one pass or fail line per step with the status and first error message of a failure, and exits non-zero on any failure. It prints no password, token or server name, so its output can be pasted into an issue as it is. The gate builds it and never runs it, and it has no tests. It does not replace a conformance run against a real server.
+- `ControlM.Client.Sample` checks session login against a real server by hand, with the client as a consumer uses it. It prompts for the endpoint, user name and password, reading the password without echo, and takes nothing from the environment or files. It logs in, calls `GET /config/servers`, and logs out by disposing the service provider with `await using`, printing one pass or fail line per step with the status and first error message of a failure, and exits non-zero on any failure. It prints no password, token or server name, so its output can be pasted into an issue as it is. The gate builds it and never runs it, and it has no tests. It does not replace a conformance run against a real server.
+  - Its steps are `login`, `GET /config/servers` and `logout`, each reported `PASS`, `FAIL` or `SKIP`. Login is not a call of its own, so it passes when the first call gets past it and fails when that call throws with the operation `Login`; `GET /config/servers` is then skipped.
+  - `logout` passes once the service provider is disposed, since the client swallows every failure of that logout and the sample has nothing to observe. It is skipped when no session was opened: a login that failed or got no response, or options that fail when the client is resolved, which is reported as a failed `configure` step. The sample learns whether a session opened from a handler it adds that watches for a successful login response.
+  - A request that gets no response cannot be placed on login or the call, so it gives one failed `login or GET /config/servers` line naming only the `HttpRequestError`, or a timeout. The exception's message is not printed, because it can name the host.
+  - An endpoint that is not an absolute `http` or `https` address fails at once, before the user name and password are asked for. The exit code of any failure is 1.
 - Every implemented operation has a test comparing its response with a fixture or a documented example.
 - The whole test suite runs in parallel and completes in under one minute.
 - Scale target: an in-process test can deploy generated definitions, order individual jobs in at least 100 sub-folders across several agents, fail a chosen job once, observe the rerun, and assert on the request journal, with no wall-clock waits.
