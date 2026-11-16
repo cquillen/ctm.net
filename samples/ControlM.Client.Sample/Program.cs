@@ -10,7 +10,7 @@ namespace ControlM.Client.Sample;
 // What this checks, and what it must never print, is in docs/requirements.md section 7.
 internal static class Program
 {
-    private const string GetServersStep = "GET /config/servers";
+    private const string _getServersStep = "GET /config/servers";
 
     private static async Task<int> Main()
     {
@@ -80,23 +80,23 @@ internal static class Program
         catch (ControlMApiException exception) when (exception.Operation == Operation.Login)
         {
             Report("FAIL", "login", Describe(exception));
-            Report("SKIP", GetServersStep, "not reached");
+            Report("SKIP", _getServersStep, "not reached");
             return Outcome.NoSession;
         }
         catch (ControlMApiException exception)
         {
             Report("PASS", "login");
-            Report("FAIL", GetServersStep, Describe(exception));
+            Report("FAIL", _getServersStep, Describe(exception));
             return Outcome.Failed;
         }
         catch (HttpRequestException exception)
         {
-            Report("FAIL", $"login or {GetServersStep}", $"no response: {exception.HttpRequestError}");
+            Report("FAIL", $"login or {_getServersStep}", $"no response: {exception.HttpRequestError}");
             return Outcome.Failed;
         }
         catch (TaskCanceledException)
         {
-            Report("FAIL", $"login or {GetServersStep}", "no response: timed out");
+            Report("FAIL", $"login or {_getServersStep}", "no response: timed out");
             return Outcome.Failed;
         }
     }
@@ -105,11 +105,11 @@ internal static class Program
     {
         if (servers.ValueKind != JsonValueKind.Array)
         {
-            Report("FAIL", GetServersStep, $"the response is a JSON {servers.ValueKind}, not an array");
+            Report("FAIL", _getServersStep, $"the response is a JSON {servers.ValueKind}, not an array");
             return Outcome.Failed;
         }
 
-        Report("PASS", GetServersStep, $"{servers.GetArrayLength()} servers");
+        Report("PASS", _getServersStep, $"{servers.GetArrayLength()} servers");
         return Outcome.Passed;
     }
 
