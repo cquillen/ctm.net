@@ -12,6 +12,10 @@ TestResults/
 *.suo
 *.DotSettings.user
 
+# Claude Code: only the project's skills are shared; worktrees and local settings stay out.
+.claude/*
+!.claude/skills/
+
 # OS files
 .DS_Store
 Thumbs.db
