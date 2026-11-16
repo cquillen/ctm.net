@@ -18,9 +18,12 @@ public sealed class ControlMSimulator : IAsyncDisposable
     /// <summary>
     /// Starts a simulator instance.
     /// </summary>
+    /// <param name="configure">Sets the options, such as <c>o =&gt; o.TimeProvider = time</c>, or <see langword="null"/> for the defaults.</param>
     /// <param name="cancellationToken">Cancels the start.</param>
     /// <returns>The started instance, which serves the Control-M API under <c>/automation-api</c>.</returns>
-    public static async Task<ControlMSimulator> StartAsync(CancellationToken cancellationToken = default)
+    public static async Task<ControlMSimulator> StartAsync(
+        Action<ControlMSimulatorOptions>? configure = null,
+        CancellationToken cancellationToken = default)
     {
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseTestServer();
