@@ -1,5 +1,8 @@
+using ControlM.Client.Authentication;
 using ControlM.Client.Authentication.ApiKey;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace ControlM.Client;
 
@@ -35,6 +38,9 @@ public static class ControlMClientServiceCollectionExtensions
             .Validate(
                 o => o.CredentialScheme is not ApiKeyScheme { IsBlank: true },
                 $"The key given to {nameof(ControlMClientOptions)}.{nameof(ControlMClientOptions.UseApiKey)} must not be empty or whitespace.");
+        // A singleton, because IHttpClientFactory rotates handlers and a scheme's state must outlive them.
+        services.TryAddSingleton<ICredentialScheme>(
+            provider => provider.GetRequiredService<IOptions<ControlMClientOptions>>().Value.CredentialScheme!);
         return ControlMPipeline.Compose(services.AddHttpClient<IControlMClient, ControlMClient>());
     }
 }
