@@ -68,25 +68,15 @@ public sealed class ControlMSimulator : IAsyncDisposable
 
     /// <summary>
     /// Returns a real <see cref="IControlMClient"/> whose requests reach this instance under <c>/automation-api</c>,
-    /// with no socket, authenticated with an API key the simulator generates and seeds: <c>SIMKEY1</c> for the first client
-    /// of an instance, <c>SIMKEY2</c> for the second, and so on. The client is released when the simulator is disposed.
+    /// with no socket, authenticated with an API key the simulator generates and seeds: <c>SIMKEY1</c> for the first
+    /// client of an instance, <c>SIMKEY2</c> for the second, and so on. The client is released when the simulator is
+    /// disposed.
     /// </summary>
     public IControlMClient CreateClient()
     {
-        var server = _app.GetTestServer();
         var apiKey = _apiKeys.Next();
         Credentials.AddApiKey(apiKey);
-        var services = new ServiceCollection();
-        services
-            .AddControlMClient(o =>
-            {
-                o.Endpoint = new Uri(server.BaseAddress, ApiPath.Base);
-                o.UseApiKey(apiKey);
-            })
-            .ConfigurePrimaryHttpMessageHandler(server.CreateHandler);
-        var provider = services.BuildServiceProvider();
-        _clientProviders.Add(provider);
-        return provider.GetRequiredService<IControlMClient>();
+        return CreateClient(o => o.UseApiKey(apiKey));
     }
 
     /// <summary>
@@ -96,7 +86,23 @@ public sealed class ControlMSimulator : IAsyncDisposable
     /// released when the simulator is disposed.
     /// </summary>
     /// <param name="configure">Sets the client's options; it must choose an authentication scheme.</param>
-    public IControlMClient CreateClient(Action<ControlMClientOptions> configure) => throw new NotImplementedException();
+    public IControlMClient CreateClient(Action<ControlMClientOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+
+        var server = _app.GetTestServer();
+        var services = new ServiceCollection();
+        services
+            .AddControlMClient(o =>
+            {
+                o.Endpoint = new Uri(server.BaseAddress, ApiPath.Base);
+                configure(o);
+            })
+            .ConfigurePrimaryHttpMessageHandler(server.CreateHandler);
+        var provider = services.BuildServiceProvider();
+        _clientProviders.Add(provider);
+        return provider.GetRequiredService<IControlMClient>();
+    }
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
