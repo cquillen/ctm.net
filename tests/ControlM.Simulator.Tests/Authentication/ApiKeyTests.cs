@@ -54,6 +54,7 @@ public sealed class ApiKeyTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    // The body for an unknown key is assumed (requirements section 4.8): no API token was available to probe.
     [Test]
     public async Task A_key_seeded_on_one_instance_is_unknown_to_another()
     {
