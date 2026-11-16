@@ -103,7 +103,10 @@ An identity that logs in to the API.
 The account, named in a job definition, under which the job runs on its agent. Unrelated to the user.
 
 **Session**:
-The period for which the token from one login is valid.
+The period during which the token from one login is accepted: until logout, or until it has gone unused for the session lifetime.
+
+**Session token**:
+The token a login returns, sent as `Authorization: Bearer`.
 
 **API key**:
 A long-lived credential, sent in `x-api-key`, that a user creates ahead of time instead of logging in. BMC calls it an API token.

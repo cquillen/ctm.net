@@ -23,6 +23,7 @@ Every change happens in a git worktree of its own, on its own branch. The defaul
 - `ControlM.Simulator` references `ControlM.Client`. Its domain model and state machine must not depend on ASP.NET Core; only the host layer does. It depends on no test framework.
 - `ControlM.SpecCheck` is the only project that may reference an OpenAPI reader.
 - `ControlM.Simulator.Tool` is a thin `Program`. It adds no behavior.
+- `ControlM.Client.Sample` references only `ControlM.Client`, through its public API. The gate builds it and never runs it.
 
 ## Conventions
 
