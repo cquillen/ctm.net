@@ -17,9 +17,11 @@ The simulator has two audiences: automated tests (in-process, deterministic, par
 | `ControlM.Simulator` | Library | Simulator core, in-process host, test API, `/__sim/` control API |
 | `ControlM.Simulator.Tool` | Executable | Thin `Program` that parses options and starts the standalone host; no behavior of its own |
 | `ControlM.SpecCheck` | Library | Compares the client and simulator with an OpenAPI document |
-| `ControlM.Client.Tests`, `ControlM.Simulator.Tests`, `ControlM.Conformance.Tests` | Tests | TUnit on Microsoft.Testing.Platform, Shouldly |
+| `ControlM.Client.Tests`, `ControlM.Simulator.Tests`, `ControlM.Conformance.Tests`, `ControlM.SpecCheck.Tests` | Tests | TUnit on Microsoft.Testing.Platform, Shouldly |
 
 Third-party dependencies: TUnit and Shouldly, in the test projects only. Everything else comes from the .NET base libraries and Microsoft's own packages.
+
+One further dependency is expected and not yet chosen. Validating live responses against a spec schema (section 6, `--live`) needs a JSON Schema validator, which the base libraries do not have. The change that implements `--live` names the package here, with its license and the reason.
 
 Structural rules:
 
@@ -27,7 +29,7 @@ Structural rules:
 - Inside `ControlM.Simulator`, the domain model and state machine do not depend on ASP.NET Core; only the host layer does.
 - `ControlM.Simulator` depends on no test framework. It takes a `TimeProvider` and returns ordinary objects.
 - Neither the client nor the simulator depends on an OpenAPI reader; only `ControlM.SpecCheck` does.
-- The typed client interface, the simulator test API and the control API are public surface. Everything else is `internal`.
+- The typed client interface, the types it exchanges, the operation table, the simulator test API and the control API are public surface. Everything else is `internal`. Where the simulator or `ControlM.SpecCheck` needs something internal from a project it depends on, that project grants it `InternalsVisibleTo`.
 - Client and simulator are organized by area and, within each area, by operation. Adding an operation or a job type adds files and one registration, with no central switch to edit.
 
 ## 2. Areas and operations
@@ -51,7 +53,37 @@ The simulator has further areas of its own, which the client does not expose:
 | `Faults` | Injected API failures and stubbed responses. |
 | `Scenarios` | Scenario files: the control calls written as data. |
 | `VirtualFiles` | The per-host set of file paths that file watcher jobs observe. |
-| `Hosting` | The in-process and standalone hosts, and the `/__sim/` control API. |
+| `Hosting` | The in-process and standalone hosts, the `ControlMSimulator` entry point, and the `/__sim/` control API. |
+
+Some areas hold what every operation shares:
+
+| Area | Project | Meaning |
+| --- | --- | --- |
+| `Operations` | Client | The operation table: the name, method and path of every implemented operation. |
+| `Operations` | Simulator | The known operations the simulator does not implement, and the 501 responses. |
+| `Errors` | Client | The `ErrorList` envelope and the exceptions it maps to. |
+| `Errors` | Simulator | Writing the `ErrorList` envelope. |
+| `Tls` | Client | Per-environment certificate trust. |
+| `Retry` | Client | Backoff for idempotent calls. |
+| `Capture` | Client | Writing sanitized requests and responses to disk. |
+
+`ControlM.SpecCheck` has areas of its own:
+
+| Area | Meaning |
+| --- | --- |
+| `SpecReading` | Loading an OpenAPI or Swagger document. The only code that touches the OpenAPI reader. |
+| `Operations`, `Parameters`, `Bodies`, `StatusCodes`, `ContentTypes`, `Authentication`, `LiveResponses` | One per row of the table in section 6: the comparison that produces those findings. |
+| `Reporting` | Findings, severities, and the Markdown and JSON reports. |
+
+The project root holds only the entry point: in the client, `IControlMClient`, its implementation, the composition of the handler pipeline, and `AddControlMClient` with its options; in `ControlM.SpecCheck`, the `spec-check` command that the tool calls. The simulator's root is empty.
+
+An area may use the areas before it in these lists, never one after it:
+
+- **Client:** `Operations`, `Errors`, `Tls`, `Retry`, `Capture`, `Authentication`, `Topology`, `Deployment`, `Jobs`, `Orders`.
+- **Simulator:** `Operations`, `Errors`, `Journal`, `Faults`, `Authentication`, `Topology`, `VirtualFiles`, `JobTypes`, `Deployment`, `Jobs`, `Orders`, `Scenarios`, `Hosting`.
+- **SpecCheck:** `SpecReading`, `Reporting`, then the comparison areas, which do not use each other.
+
+Shared identifiers belong to the earliest area whose concept they are: `ServerName` to `Topology`; `JobRef` and `DefinitionDocument` to `Deployment`; `JobId`, `JobStatus` and `JobRun` to `Jobs`; `RunId` to `Orders`.
 
 Contract types, client methods and simulator behavior exist only for the operations below. Full API coverage is not a goal.
 
@@ -76,19 +108,21 @@ Both authentication schemes are supported: session login with a bearer token, an
 
 ### 3.2 Typed interface
 
-One root interface, `IControlMClient`, exposes four of the areas as properties. Authentication is configured at registration (`services.AddControlMClient(o => ...)` with `UseSessionLogin` or `UseApiKey`) and is not part of the interface. The interface can be faked in the consumer's unit tests.
+One root interface, `IControlMClient`, exposes four of the areas as properties, plus the low-level `SendAsync<T>` described below. Authentication is configured at registration (`services.AddControlMClient(o => ...)` with `UseSessionLogin` or `UseApiKey`) and is not part of the interface. The interface can be faked in the consumer's unit tests.
 
 | Area | Members |
 | --- | --- |
 | `Orders` | `OrderJobAsync(JobRef, variables, options)` (the primary path), `OrderAsync(OrderRequest)` (whole folder or jobs filter), `GetRunStatusAsync` |
 | `Jobs` | `GetJobAsync`, `QueryJobsAsync`, `RerunAsync`, `HoldAsync`, `FreeAsync`, `KillAsync`, `SetToOkAsync`, `ConfirmAsync`, `RunNowAsync`, `GetOutputAsync`, `GetLogAsync`, `GetWaitingInfoAsync` |
-| `Deployment` | `BuildAsync`, `DeployAsync`, `GetJobsAsync`, `DeleteFolderAsync` |
+| `Deployment` | `BuildAsync`, `DeployAsync`, `GetJobsAsync`, `GetFoldersAsync`, `DeleteFolderAsync` |
 | `Topology` | `GetServersAsync`, `GetAgentsAsync`, `GetHostGroupsAsync` |
+
+Each member is one feature, in a folder named for the method without `Async`. The exception is the seven job actions (`RerunAsync` to `RunNowAsync`), which differ only by path segment and form one family, `Jobs/Actions`. An operation with no member of its own (`GET /deploy/poll` and the two session calls) takes its folder name from the operation table.
 
 The interface adds the typing the API lacks:
 
 - **Identifiers.** Value types `ServerName`, `RunId` and `JobId` (`server:orderId`, with `Parse`). `JobRef` (server, folder, optional sub-folder, job name) addresses a job in the deployed definitions; the client turns it into the order call.
-- **Status.** A `JobStatus` enum (`WaitCondition`, `WaitResource`, `WaitHost`, `WaitUser`, `WaitWorkload`, `Executing`, `EndedOk`, `EndedNotOk`, `StatusUnknown`) plus the server's exact text in `RawStatus`. Unrecognized text maps to `Unknown` and never throws.
+- **Status.** A `JobStatus` enum (`WaitCondition`, `WaitResource`, `WaitHost`, `WaitUser`, `WaitWorkload`, `Executing`, `EndedOk`, `EndedNotOk`, `StatusUnknown`, `Unrecognized`) plus the server's exact text in `RawStatus`. `StatusUnknown` is Control-M's own "Status Unknown". Text the client does not know maps to `Unrecognized` and never throws.
 - **Dates.** Start and end times are `DateTimeOffset`. The order date stays the server's string.
 - **Job definitions.** An opaque JSON document (`DefinitionDocument`). The application owns the content.
 - **Ordering.** `OrderOptions.IgnoreCriteria` defaults to `true`, because jobs run on demand and have no schedule.
@@ -98,7 +132,7 @@ Behavior:
 
 - `QueryJobsAsync` hides paging behind `IAsyncEnumerable<JobRun>`. A 206 from `GET /run/jobs/status` is a partial result and is surfaced to the caller.
 - `BuildAsync` and `DeployAsync` build the multipart upload from an in-memory definition. `DeployAsync` follows a `pollId` through `GET /deploy/poll` to completion.
-- The server parameter is sent as either `ctm` or `server`, one choice used throughout.
+- The server parameter is always sent as `server`, never `ctm`.
 - A low-level `SendAsync<T>(method, path, body?)` calls any operation the typed interface does not cover, through the same authentication, retry, error mapping and capture pipeline.
 
 ### 3.3 Errors
@@ -125,7 +159,8 @@ The simulator reproduces the HTTP surface and observable behavior of the support
 - Response bodies, status codes and the error envelope (an `errors` array whose entries carry a `message` and optional location details) match the real API.
 - Malformed requests get a 400.
 - Both `ctm` and `server` are accepted wherever the real API accepts both.
-- An operation table names every operation in the API (name, method, path). Endpoints are registered from it, one handler per operation.
+- Endpoints are registered from the client's operation table, one handler per operation, so each path is written once.
+- The simulator also lists the rest of the API's operations (name, method, path), written by hand from the public documentation and the Python client.
 - A known but unimplemented operation returns 501 with an `ErrorList` body naming the operation. A path matching no known operation returns 501 naming the method and path. An unexpected call always fails loudly.
 
 ### 4.2 Authentication
@@ -138,7 +173,7 @@ The simulator reproduces the HTTP surface and observable behavior of the support
 
 - **Topology:** servers, agents with status, and host groups.
 - **Deployed definitions:** folders, sub-folders and jobs. Each job has its type, host, run-as user and type-specific fields.
-- **Active environment:** folder and job instances with order ID, status, run count, held and deleted flags, start and end times, order date, output and log text, and the variables passed at order time.
+- **Active environment:** folder and job instances with order ID, status, run count, held flag, start and end times, order date, output and log text, and the variables passed at order time.
 - **Virtual files:** a per-host set of paths (no content), used by file watcher jobs.
 
 ### 4.4 Build and deploy
@@ -161,6 +196,9 @@ The simulator reproduces the HTTP surface and observable behavior of the support
   - `hold` prevents start; `free` releases it.
   - `kill` ends an executing job as failed.
   - `setToOk` forces success.
+  - `confirm` releases a job that is waiting for confirmation.
+  - `runNow` starts a waiting job at once, unless it is held.
+- `waitingInfo` lists why a job is not running: held, awaiting confirmation, or its agent unavailable. For any other job the list is empty.
 - Status queries page correctly and honor at least these filters: folder, job name, status, host, server, order date range, job ID.
 - Statuses include an `outputURI` and `logURI` that resolve against the simulator.
 
@@ -181,7 +219,9 @@ An unscripted job succeeds after a default duration. Default durations, output a
 
 ### 4.8 Assumed Control-M behavior
 
-These behaviors are not yet verified against a real server. Each sits behind a seam so it can change cheaply.
+These behaviors are not yet verified against a real server. Each is implemented in one named method or type, so it can change in one place. That does not mean an interface.
+
+When the public documentation and the Python client do not settle a detail, choose the most plausible behavior and add a row here in the same change.
 
 | Item | Working assumption |
 | --- | --- |
@@ -193,6 +233,9 @@ These behaviors are not yet verified against a real server. Each sits behind a s
 | Not-found on status and deploy queries | Follows the public documentation (404 or an empty list) |
 | Embedded script size | No limit enforced |
 | Job status strings | As given in the public documentation |
+| Which jobs wait for confirmation | A job whose definition sets `Confirm` to true waits in Wait User until `confirm` |
+| What `runNow` bypasses | Agent availability and confirmation, but not a hold |
+| Shape of `waitingInfo` | A list of reason strings |
 
 ## 5. Simulator control
 
@@ -200,19 +243,22 @@ One set of control capabilities, exposed three ways over a single implementation
 
 ### 5.1 Capabilities
 
-| Area | Test API | Capability |
-| --- | --- | --- |
-| Topology | `sim.Topology` | Add servers, agents and host groups; mark an agent unavailable and available again |
-| Definitions | `sim.Definitions` | Seed folders and jobs with a fluent builder, as an alternative to deploying through the real endpoint |
-| Job outcomes | `sim.Jobs` | By job pattern: succeed, fail N times then succeed, hang, set duration, set output and log text, create or remove virtual files |
-| API faults | `sim.Api` | By operation: status code, added latency, dropped connection, malformed body; once, N times or always |
-| Stubs | `sim.Api.Stub` | Canned response for any method and path. Stateless, takes precedence over the named 501, recorded in the journal |
-| Operator actions | `sim.Operator` | Rerun, hold, free, kill or set-to-OK a job out of band, as a Control-M operator would |
-| Credentials | `sim.Credentials` | Seed users and API keys; expire or revoke sessions |
-| Virtual files | `sim.Files` | Create or remove paths on a host |
-| Time | `TimeProvider`, `sim.TriggerNewDay()` | Advance the injected provider; trigger New Day |
-| Inspection | `sim.Journal`, `sim.State` | Request journal (operation, method, path, headers, body, time); current state of any folder or job instance; every order received with its variables |
-| Reset | | Return to empty state |
+| Control | Test API | Owning area | Capability |
+| --- | --- | --- | --- |
+| Topology | `sim.Topology` | `Topology` | Add servers, agents and host groups; mark an agent unavailable and available again |
+| Definitions | `sim.Definitions` | `Deployment` | Seed folders and jobs with a fluent builder, as an alternative to deploying through the real endpoint |
+| Job outcomes | `sim.Jobs` | `Jobs` | By job pattern: succeed, fail N times then succeed, hang, set duration, set output and log text, create or remove virtual files |
+| API faults | `sim.Api` | `Faults` | By operation: status code, added latency, dropped connection, malformed body; once, N times or always |
+| Stubs | `sim.Api.Stub` | `Faults` | Canned response for any method and path. Stateless, takes precedence over the named 501, recorded in the journal |
+| Operator actions | `sim.Operator` | `Jobs` | Rerun, hold, free, kill, set-to-OK, confirm or run-now a job out of band, as a Control-M operator would |
+| Credentials | `sim.Credentials` | `Authentication` | Seed users and API keys; expire or revoke sessions |
+| Virtual files | `sim.Files` | `VirtualFiles` | Create or remove paths on a host |
+| Time | `TimeProvider`, `sim.TriggerNewDay()` | `Jobs` | Advance the injected provider; trigger New Day |
+| Journal | `sim.Journal` | `Journal` | Every request received: operation, method, path, headers, body, time |
+| State | `sim.State` | `Jobs`, `Orders` | Current state of any folder or job instance; every order received with its variables |
+| Reset | `sim.Reset()` | `Hosting` | Return to empty state |
+
+The test API is named for what a test controls, so its property names need not match the area that implements them. The "Owning area" column says where each lives.
 
 A job pattern is a glob over `folder/subfolder/job`. The most specific matching rule wins.
 
@@ -220,6 +266,7 @@ A job pattern is a glob over `folder/subfolder/job`. The most specific matching 
 
 - `ControlMSimulator.StartAsync(o => o.TimeProvider = time)` starts an instance in milliseconds. `sim.CreateClient()` returns a real client wired to it; `sim.CreateHttpClient()` returns a raw `HttpClient`.
 - Each test starts its own instance. Instances share no state, so tests run in parallel.
+- The in-process host uses the ASP.NET Core test server and opens no socket. The standalone host uses Kestrel. A dropped-connection fault reaches the client as a transient network failure under both.
 - Typed control calls act on the simulator core directly, with no HTTP round trip.
 - Nothing depends on wall-clock time or sleeps.
 - A scenario file can be loaded at start (`o.LoadScenario(...)`) and then adjusted in code.
@@ -256,7 +303,7 @@ Shipped scenarios: clean run, several tenants failing at one step, one agent dow
 
 ## 6. Spec comparison
 
-`ControlM.SpecCheck` reports every difference between an OpenAPI document and this project. It is run through the tool:
+`ControlM.SpecCheck` reports every difference between an OpenAPI document and this project. It reads the document with Microsoft.OpenApi. The command, its options and its exit code are implemented in `ControlM.SpecCheck`; the tool only passes its arguments on. It is run through the tool:
 
 ```
 dotnet run --project src/ControlM.Simulator.Tool -- spec-check --spec <file> [--out report.md] [--json report.json] [--live] [--all]
@@ -283,7 +330,11 @@ dotnet run --project src/ControlM.Simulator.Tool -- spec-check --spec <file> [--
 
 - Simulator tests compare raw response JSON with fixtures or documented examples, not DTO round-trips, so the client and simulator cannot agree while both are wrong.
 - Client tests deserialize the raw fixtures directly, with no simulator involved.
+- Fixtures are written by hand from the public documentation and the Python client: real shapes, invented values. Each has one copy, shared by the test projects that use it.
+- Identifiers the simulator generates (order IDs, run IDs, poll IDs, session tokens) come from a per-instance sequence, so the same calls on a new instance produce the same values and a fixture can hold them literally.
 - The conformance suite is written against the client interface and runs against either the simulator or a real server.
+- A real server is opt-in and never used by CI. Its endpoint, credential, and the server, host and folder names to use come from environment variables prefixed `CTM_CONFORMANCE_`. When they are absent, the suite runs against the simulator.
+- A conformance test that arranges state through the simulator's test API is marked simulator-only and is skipped against a real server. The rest use only the client interface.
 - Every implemented operation has a test comparing its response with a fixture or a documented example.
 - The whole test suite runs in parallel and completes in under one minute.
 - Scale target: an in-process test can deploy generated definitions, order individual jobs for at least 100 tenants across several agents, fail a chosen job once, observe the rerun, and assert on the request journal, with no wall-clock waits.
