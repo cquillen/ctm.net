@@ -1,0 +1,7 @@
+{
+  "errors": [
+    {
+      "message": "User not found. Session token is invalid or expired."
+    }
+  ]
+}
