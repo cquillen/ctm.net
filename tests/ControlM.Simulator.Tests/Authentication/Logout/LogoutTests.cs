@@ -1,0 +1,49 @@
+using System.Net;
+using System.Net.Http.Headers;
+using System.Text;
+using ControlM.Fixtures;
+using ControlM.Simulator.Hosting;
+using Shouldly;
+
+namespace ControlM.Simulator.Tests.Authentication.Logout;
+
+public sealed class LogoutTests
+{
+    private static Uri Logout => new("/automation-api/session/logout", UriKind.Relative);
+
+    private static Uri GetServers => new("/automation-api/config/servers", UriKind.Relative);
+
+    [Test]
+    public async Task A_live_token_answers_200_with_the_observed_body_and_its_session_ends()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        simulator.Credentials.AddUser("USER1", "PASSWORD1");
+        using var http = simulator.CreateHttpClient();
+        await LogInAsync(http);
+
+        using var response = await SendWithTokenAsync(http, HttpMethod.Post, Logout, "SIMTOKEN1");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync()).ShouldEqualJson(
+            JsonFixture.Load("Authentication", "Logout", "Logout.success.json"));
+        using var afterLogout = await SendWithTokenAsync(http, HttpMethod.Get, GetServers, "SIMTOKEN1");
+        afterLogout.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await afterLogout.Content.ReadAsStringAsync()).ShouldEqualJson(
+            JsonFixture.Load("Authentication", "ApiKey", "GetServers.invalid-bearer-token.json"));
+    }
+
+    private static async Task LogInAsync(HttpClient http)
+    {
+        using var response = await http.PostAsync(
+            new Uri("/automation-api/session/login", UriKind.Relative),
+            new StringContent("""{"username":"USER1","password":"PASSWORD1"}""", Encoding.UTF8, "application/json"));
+        response.EnsureSuccessStatusCode();
+    }
+
+    private static async Task<HttpResponseMessage> SendWithTokenAsync(HttpClient http, HttpMethod method, Uri uri, string token)
+    {
+        using var request = new HttpRequestMessage(method, uri);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return await http.SendAsync(request);
+    }
+}
