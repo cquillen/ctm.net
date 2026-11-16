@@ -199,7 +199,7 @@ The simulator reproduces the HTTP surface and observable behavior of the support
 
 - Users are seeded with a user name and password, and log in with `POST /session/login`. API keys are seeded and sent as `x-api-key`.
 - Session login issues a token, sent as `Authorization: Bearer`. Tokens come from a per-instance sequence: `SIMTOKEN1`, `SIMTOKEN2` and so on.
-- A session is an idle timeout, as BMC's administration guide documents: it expires `ControlMSimulatorOptions.SessionLifetime` (default 30 minutes) after its last authenticated request, read from the `TimeProvider`. A real server may expire a token up to 10 minutes late, and caps the timeout at 3 hours; neither is simulated. A session can be expired on demand (section 5.1).
+- A session is an idle timeout, as BMC's administration guide documents: it expires `ControlMSimulatorOptions.SessionLifetime` (default 30 minutes) after its last authenticated request, read from the `TimeProvider`. Login starts that time, and only a request that passes the credential check with the token restarts it, so an unknown path or a wrong method does not. A real server may expire a token up to 10 minutes late, and caps the timeout at 3 hours; neither is simulated. A session can be expired on demand (section 5.1).
 - Every implemented operation checks the credential, except the two session operations below. An unknown path and a wrong method do not: they answer 404 and 405 whatever the request carries.
 - The credential check looks first at which headers are present, then at their values. A failure returns one error entry with no `code` or `uri`:
 
