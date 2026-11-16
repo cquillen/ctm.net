@@ -21,4 +21,20 @@ public sealed class ControlMSimulatorTests
 
         exception.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
+
+    [Test]
+    public async Task The_client_callback_runs_after_the_endpoint_is_set_so_it_can_replace_it()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        var client = simulator.CreateClient(o =>
+        {
+            o.Endpoint = new Uri("http://localhost/elsewhere");
+            o.UseApiKey("APIKEY1");
+        });
+
+        var exception = await Should.ThrowAsync<ControlMNotFoundException>(
+            () => client.SendAsync(HttpMethod.Get, "/config/servers"));
+
+        exception.Errors.ShouldHaveSingleItem().Uri.ShouldBe("/elsewhere/config/servers");
+    }
 }
