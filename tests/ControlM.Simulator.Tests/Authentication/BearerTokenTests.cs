@@ -123,6 +123,19 @@ public sealed class BearerTokenTests
         other.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    [Test]
+    public async Task Expiring_a_token_that_is_not_live_leaves_the_live_sessions()
+    {
+        await using var simulator = await StartWithUserAsync(new FakeTimeProvider());
+        using var http = simulator.CreateHttpClient();
+        await LogInAsync(http);
+
+        simulator.Credentials.ExpireSession("SIMTOKEN2");
+        using var response = await GetServersWithTokenAsync(http, "SIMTOKEN1");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
     private static async Task ShouldBeInvalidTokenAsync(HttpResponseMessage response)
     {
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
