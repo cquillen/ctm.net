@@ -82,4 +82,21 @@ public sealed class RequestJournalTests
         first.Journal.Entries.Count.ShouldBe(1);
         second.Journal.Entries.ShouldBeEmpty();
     }
+
+    [Test]
+    public async Task Concurrent_requests_are_all_recorded()
+    {
+        const int requests = 200;
+        await using var simulator = await ControlMSimulator.StartAsync();
+        using var http = simulator.CreateHttpClient();
+
+        var responses = await Task.WhenAll(Enumerable.Range(0, requests).Select(_ => Task.Run(() => http.GetAsync(GetServers))));
+
+        foreach (var response in responses)
+        {
+            response.Dispose();
+        }
+
+        simulator.Journal.Entries.Count.ShouldBe(requests);
+    }
 }
