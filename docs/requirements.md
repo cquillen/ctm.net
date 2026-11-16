@@ -60,7 +60,7 @@ Some areas hold what every operation shares:
 | Area | Project | Meaning |
 | --- | --- | --- |
 | `Operations` | Client | The operation table: the name, method and path of every implemented operation. |
-| `Operations` | Simulator | The known operations the simulator does not implement, and the 501 responses. |
+| `Operations` | Simulator | The known operations the simulator does not implement and their 501 responses, and the 404 for an unknown operation. |
 | `Errors` | Client | The `ErrorList` envelope and the exceptions it maps to. |
 | `Errors` | Simulator | Writing the `ErrorList` envelope. |
 | `Tls` | Client | Per-environment certificate trust. |
@@ -138,7 +138,9 @@ Behavior:
 
 ### 3.3 Errors
 
-- An API failure throws `ControlMApiException`, carrying the status code, every entry of the `ErrorList` body and the operation ID. Subtypes: `ControlMAuthenticationException` (401 after one re-login) and `ControlMNotFoundException` (404).
+- An API failure throws `ControlMApiException`, carrying the status code, every entry of the `ErrorList` body, the method and path, and the operation. A call made through `SendAsync<T>` has no operation. Subtypes: `ControlMAuthenticationException` (401 after one re-login) and `ControlMNotFoundException` (404).
+- An error entry carries the server's `message` and, where the server sends them, `id`, `item`, `file`, `line`, `col`, `code` and `uri`. The first six come from the Python client; `code` and `uri` were observed on a real server.
+- A failure whose body is not an `ErrorList` still throws `ControlMApiException`, with no entries and the text of the body.
 - Build and deploy validation problems are returned as a result (`BuildResult`, `DeployResult`), not thrown.
 - A job that ended badly is data, not an exception.
 
@@ -157,12 +159,15 @@ The simulator reproduces the HTTP surface and observable behavior of the support
 
 ### 4.1 HTTP surface
 
+- The Control-M API is served under `/automation-api`, as on a real server.
 - Response bodies, status codes and the error envelope (an `errors` array whose entries carry a `message` and optional location details) match the real API.
 - Malformed requests get a 400.
 - Both `ctm` and `server` are accepted wherever the real API accepts both.
 - Endpoints are registered from the client's operation table, one handler per operation, so each path is written once.
 - The simulator also lists the rest of the API's operations (name, method, path), written by hand from the public documentation and the Python client.
-- A known but unimplemented operation returns 501 with an `ErrorList` body naming the operation. A path matching no known operation returns 501 naming the method and path. An unexpected call always fails loudly.
+- A known but unimplemented operation returns 501 with an `ErrorList` body naming the operation.
+- A path matching no known operation returns 404 as a real server does, whether or not the request carries a credential: one error entry with the message `Not Found`, the code `404`, and a `uri` holding the path without the `/automation-api` prefix or the query string. [ADR 0001](adr/0001-unknown-path-answers-404.md) gives the reason.
+- An unexpected call never succeeds silently, and the journal marks a request that matched no operation.
 
 ### 4.2 Authentication
 
@@ -242,6 +247,8 @@ When the public documentation and the Python client do not settle a detail, choo
 | Session lifetime | A token expires 30 minutes after login; activity does not extend it |
 | Order ID across reruns | A rerun keeps the job instance's order ID |
 | Agents and servers | An agent belongs to the server it was added to; the same name on two servers is two agents |
+| Unknown path with a method other than `GET` | The same 404 as the `GET` that was observed |
+| Unknown path outside `/automation-api` | The same 404, with the whole path in `uri` |
 
 ## 5. Simulator control
 
@@ -255,12 +262,12 @@ One set of control capabilities, exposed three ways over a single implementation
 | Definitions | `sim.Definitions` | `Deployment` | Seed folders and jobs with a fluent builder, as an alternative to deploying through the real endpoint |
 | Job outcomes | `sim.Jobs` | `Jobs` | By job pattern: succeed, fail N times then succeed, hang, set duration, set output and log text, create or remove virtual files |
 | API faults | `sim.Api` | `Faults` | By operation: status code, added latency, dropped connection, malformed body; once, N times or always |
-| Stubs | `sim.Api.Stub` | `Faults` | Canned response for any method and path. Stateless, takes precedence over the named 501, recorded in the journal |
+| Stubs | `sim.Api.Stub` | `Faults` | Canned response for any method and path. Stateless, takes precedence over the named 501 and the unknown-operation 404, recorded in the journal |
 | Operator actions | `sim.Operator` | `Jobs` | Rerun, hold, free, kill, set-to-OK, confirm or run-now a job out of band, as a Control-M operator would |
 | Credentials | `sim.Credentials` | `Authentication` | Seed users and API keys; expire or revoke sessions |
 | Virtual files | `sim.Files` | `VirtualFiles` | Create or remove paths on a host |
 | Time | `TimeProvider`, `sim.TriggerNewDay()` | `Jobs` | Advance the injected provider; trigger New Day |
-| Journal | `sim.Journal` | `Journal` | Every request received: operation, method, path, headers, body, time |
+| Journal | `sim.Journal` | `Journal` | Every request received: operation, method, path, headers, body, time. A request that matched no operation is marked as such |
 | State | `sim.State` | `Jobs`, `Orders` | Current state of any folder or job instance; every order received with its variables |
 | Reset | `sim.Reset()` | `Hosting` | Return to empty state |
 
@@ -268,7 +275,7 @@ The test API is named for what a test controls, so its property names need not m
 
 A job pattern is a glob over `folder/subfolder/job`. The most specific matching rule wins. A count in a rule, such as failing N times, is kept per job instance: every instance the rule matches fails its first N runs.
 
-The journal holds every request to the Control-M API surface, including one answered by a stub, a fault or a 501. Control API calls, typed controls and operator actions are not journaled.
+The journal holds every request to the Control-M API surface, including one answered by a stub, a fault, a 501 or the unknown-operation 404. Control API calls, typed controls and operator actions are not journaled.
 
 ### 5.2 In-process use
 
