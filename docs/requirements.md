@@ -97,9 +97,11 @@ Contract types, client methods and simulator behavior exist only for the operati
 | `Jobs` | Status: `GET /run/jobs/status`, `GET /run/job/{jobId}/status`<br>Actions: `POST /run/job/{jobId}/` + `rerun`, `hold`, `free`, `kill`, `setToOk`, `confirm`, `runNow`<br>Diagnostics: `GET /run/job/{jobId}/output`, `GET /run/job/{jobId}/log`, `GET /run/job/{jobId}/waitingInfo` |
 | `Topology` | `GET /config/servers`, `GET /config/server/{server}/agents`, `GET /config/server/{server}/hostgroups` |
 
+The operation table is the set of static properties of the public `Operation` record, one per implemented operation, such as `Operation.GetServers`. Its name is the client method's without `Async`, or the name above for an operation with no method. Its path is relative to the endpoint, in route-template syntax. Adding the property is the operation's one registration in the client. In the simulator, the operation's endpoint maps itself from that property, and the one registration is the call to it in `Hosting`.
+
 Supported job types: `Job:Command`, `Job:Script`, `Job:EmbeddedScript`, `Job:FileWatcher`.
 
-Both authentication schemes are supported: session login with a bearer token, and an API key in `x-api-key`.
+Both authentication schemes are supported: session login with a bearer token, and an API key in `x-api-key`. BMC calls an API key an API token.
 
 ## 3. Client
 
@@ -113,6 +115,8 @@ Both authentication schemes are supported: session login with a bearer token, an
 One root interface, `IControlMClient`, exposes four of the areas as properties, plus the two low-level `SendAsync` members described below. Authentication is configured at registration (`services.AddControlMClient(o => ...)` with `UseSessionLogin` or `UseApiKey`) and is not part of the interface. The interface can be faked in the consumer's unit tests.
 
 `ControlMClientOptions` follows the standard .NET options pattern: the registration callback sets its properties, `services.AddControlMClient(o => o.Endpoint = endpoint)`, as `ControlMSimulator.StartAsync` does in section 5.2. `Endpoint` includes the `/automation-api` prefix, and a missing one fails when the client is first resolved.
+
+An authentication scheme is required, because every operation needs a credential. `UseApiKey(key)` and `UseSessionLogin(...)` are methods of `ControlMClientOptions`. A client with no scheme, or with an empty or whitespace API key, fails when it is first resolved.
 
 | Area | Members |
 | --- | --- |
@@ -142,7 +146,7 @@ Behavior:
 
 ### 3.3 Errors
 
-- An API failure throws `ControlMApiException`, carrying the status code, every entry of the `ErrorList` body, the method and path, and the operation. A call made through either `SendAsync` has no operation. Subtypes: `ControlMAuthenticationException` (401 after one re-login) and `ControlMNotFoundException` (404).
+- An API failure throws `ControlMApiException`, carrying the status code, every entry of the `ErrorList` body, the method and path, and the operation. A call made through either `SendAsync` has no operation. Subtypes: `ControlMAuthenticationException` (a 401: for session login, one that remains after one re-login) and `ControlMNotFoundException` (404).
 - An error entry carries the server's `message` and, where the server sends them, `id`, `item`, `file`, `line`, `col`, `code` and `uri`. The first six come from the Python client; `code` and `uri` were observed on a real server.
 - The path the exception carries is the one the caller gave, relative to the endpoint and with its query string. Its message names the status code, the method, the path and the first error message.
 - A failure whose body is not an `ErrorList` still throws `ControlMApiException`, with no entries and the text of the body. A body counts as an `ErrorList` only when it parses as one and every entry has a message.
@@ -153,7 +157,7 @@ Behavior:
 
 | Concern | Requirement |
 | --- | --- |
-| Authentication | One abstraction, two implementations. Session: login, re-login once on 401, logout on disposal. API key: adds `x-api-key`. |
+| Authentication | One abstraction, two implementations, held by a singleton so that its state outlives the handlers `IHttpClientFactory` rotates. Session: login, re-login once on 401, logout on disposal. API key: adds `x-api-key`. |
 | Retry | Backoff on 503 and transient network failures, for idempotent calls only. An order or a job action is never retried automatically. |
 | Capture | When enabled, writes each request and response to disk after sanitizing. Passwords, tokens and API keys are always removed. Host, server and folder names are replaced with stable stand-ins through a configurable map. |
 | TLS | Certificate trust is configurable per environment, to allow for self-signed server certificates. Validation is never disabled globally. |
@@ -174,13 +178,24 @@ The simulator reproduces the HTTP surface and observable behavior of the support
 - The simulator also lists the rest of the API's operations (name, method, path), written by hand from the public documentation and the Python client.
 - A known but unimplemented operation returns 501 with an `ErrorList` body naming the operation.
 - A path matching no known operation returns 404 as a real server does, whether or not the request carries a credential: one error entry with the message `Not Found`, the code `404`, and a `uri` holding the path without the `/automation-api` prefix or the query string. [ADR 0001](adr/0001-unknown-path-answers-404.md) gives the reason.
+- A path of an implemented operation called with a method it does not serve returns 405 as a real server does, whatever the credential: an `Allow` header naming the methods it serves, and one error entry with the message `Method Not Allowed`, the code `405`, and a `uri` formed as for the 404.
 - An unexpected call never succeeds silently, and the journal marks a request that matched no operation.
 
 ### 4.2 Authentication
 
 - Session login issues a token, sent as `Authorization: Bearer`. API keys are seeded and sent as `x-api-key`.
 - Session lifetime is configurable (default: 30 minutes from login, whatever the activity). A token can be expired or revoked on demand.
-- An invalid or expired credential returns 401 with an `ErrorList`.
+- Every implemented operation checks the credential. An unknown path and a wrong method do not: they answer 404 and 405 whatever the request carries.
+- A missing, invalid or expired credential returns 401 with one error entry and no `code` or `uri`. The message depends on what the request carried:
+
+  | Request carries | Message |
+  | --- | --- |
+  | No `x-api-key` with a value, and no `Authorization` header | `Unauthenticated request: No authentication header was provided` |
+  | A bearer token that is invalid or expired | `User not found. Session token is invalid or expired.` |
+  | An API key that was never seeded | `Invalid API token.` (assumed, section 4.8) |
+
+  The first two were observed on a real server.
+- A request with a seeded API key passes, whatever other headers it carries.
 
 ### 4.3 Domain model
 
@@ -257,6 +272,10 @@ When the public documentation and the Python client do not settle a detail, choo
 | Unknown path with a method other than `GET` | The same 404 as the `GET` that was observed |
 | Unknown path outside `/automation-api` | The same 404, with the whole path in `uri` |
 | The bare path `/automation-api`, with nothing after it | Outside the prefix: the same 404, with `/automation-api` in `uri` |
+| Wrong method on a real path | The same 405 as the observed `PATCH /run/jobs/status`, for every method, path and credential |
+| 401 for an API key that was never seeded | The message `Invalid API token.`; no API token was available to probe |
+| A seeded API key beside other credential headers | The key is enough; the other headers are ignored |
+| A request with no credential and an invalid body | 401, not 400: the credential is checked before the body |
 
 ## 5. Simulator control
 
@@ -287,7 +306,7 @@ The journal holds every request to the Control-M API surface, including one answ
 
 ### 5.2 In-process use
 
-- `ControlMSimulator.StartAsync(o => o.TimeProvider = time)` starts an instance in milliseconds. `sim.CreateClient()` returns a real client wired to it; `sim.CreateHttpClient()` returns a raw `HttpClient`.
+- `ControlMSimulator.StartAsync(o => o.TimeProvider = time)` starts an instance in milliseconds. `sim.CreateClient()` returns a real client wired to it, after seeding a fresh API key and configuring the client with it. `sim.CreateClient(o => ...)` lets the test choose the credential instead, such as an unknown key. `sim.CreateHttpClient()` returns a raw `HttpClient`, which sends no credential of its own.
 - Each test starts its own instance. Instances share no state, so tests run in parallel.
 - The in-process host uses the ASP.NET Core test server and opens no socket. The standalone host uses Kestrel. A dropped-connection fault reaches the client as a transient network failure under both.
 - Typed control calls act on the simulator core directly, with no HTTP round trip.
@@ -355,7 +374,8 @@ dotnet run --project src/ControlM.Simulator.Tool -- spec-check --spec <file> [--
 - Client tests deserialize the raw fixtures directly, with no simulator involved.
 - Fixtures are written by hand from the public documentation and the Python client: real shapes, invented values. Each has one copy, shared by the test projects that use it.
 - A test project brings in the fixtures, and `JsonFixture`, which loads one and compares JSON by value, by importing `tests/Fixtures/Fixtures.props`. There is no shared test project.
-- Identifiers the simulator generates (order IDs, run IDs, poll IDs, session tokens) come from a per-instance sequence, so the same calls on a new instance produce the same values and a fixture can hold them literally.
+- Identifiers the simulator generates (order IDs, run IDs, poll IDs, session tokens, and the API keys `CreateClient()` seeds, such as `SIMKEY1`) come from per-instance sequences, so the same calls on a new instance produce the same values and a fixture can hold them literally. Each kind of identifier has its own sequence, held by the area that issues it.
+- Every observation of a real server in this project comes from one that reports API version 9.22.60, the target version; a probe need not ask again. The maintainer can probe it with session login only and holds no API token, so API key behavior is taken from BMC's documentation and Python client, and what they leave open is recorded in section 4.8.
 - The conformance suite is written against the client interface and runs against either the simulator or a real server.
 - A real server is opt-in and never used by CI. Its endpoint, credential, and the server, host and folder names to use come from environment variables prefixed `CTM_CONFORMANCE_`. When they are absent, the suite runs against the simulator.
 - A conformance test that arranges state through the simulator's test API is marked simulator-only and is skipped against a real server. The rest use only the client interface.
