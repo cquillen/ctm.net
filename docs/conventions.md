@@ -10,19 +10,47 @@ These rules apply to all code in this repository.
 - Async end to end with `CancellationToken`. Never block on a task.
 - All timing reads from an injected `TimeProvider`.
 - No dead code and no commented-out code.
-- Package versions live in `Directory.Packages.props`. Add a package only when code first uses it.
+- Data types are immutable records.
+- JSON is `System.Text.Json` only, with one shared options definition per project.
+- A class over about 300 lines or a method over about 40 needs a reason.
 - Add `InternalsVisibleTo` only when a test first needs it.
 
 ## Organization
 
 Organize by feature, never by type. Every feature lives in an area folder, and each namespace matches its folder: `<Area>/<Feature>/`.
 
-- **Areas are required.** An area groups related features and is named for what it covers in the domain, not for a URL segment or a kind of class. `docs/requirements.md` lists the areas and what each means.
-- **A feature is self-contained.** A feature is one operation or one job type. Its contract types, client method, handler, validation and helpers sit together in one folder inside its area. Reading or changing a feature means opening one folder.
+- **Areas are required.** An area is a part of the Control-M API or a named concept of this project, such as the request journal. It is named for what it covers in the domain, not for a URL segment or a kind of class. `docs/requirements.md` lists the areas and what each means.
+- **A feature is self-contained within a project.** Its code sits together in one folder inside its area, so reading or changing it means opening one folder. A feature has a folder in each project it applies to, with the same area and feature names, and none where it does not apply.
+- **A feature is one operation, one job type, or a family of operations that differ only by data.** A family is a single feature driven by a table, not a folder per member.
+- **An area owns its domain model.** In the simulator, the model and the test API that controls it live at the area root, and feature folders hold the HTTP side. Areas depend on each other in one direction only.
+- **Layout inside an area or feature is free.** Add subfolders where they help.
 - **No type-based folders.** No `Models`, `Controllers`, `Services`, `Handlers`, `Dtos`, `Helpers` or `Utilities`. The default ASP.NET MVC layout is the counter-example: one feature scattered across a folder per kind of class.
-- **The public API uses the same names.** An area's folder, namespace and public interface share one name, and a feature's folder matches its public method.
+- **The public API uses the same names.** An area the client exposes shares one name across its folder, namespace and public interface, and a feature's folder matches its public method.
+- **Area interfaces and their implementations are `partial`.** Each feature folder holds its own slice of both, so adding an operation edits no existing file.
+- **ASP.NET Core stays at the edge of the simulator.** Only types named `*Endpoint` and the hosting area may use it. A reflection test in `ControlM.Simulator.Tests` enforces this.
 - **Shared code needs a real name.** Code used by several features lives in a folder named for the concept it implements, not in `Common/` or `Shared/`.
-- **Tests mirror the area and feature folders** of the project they test.
+- **Tests mirror the area and feature folders** of the code they test.
+
+An example, for one feature. The requirements define the real names; this only shows the shape.
+
+```text
+src/ControlM.Client/Jobs/
+├── IControlMJobs.cs                  the interface declaration and its summary
+├── ControlMJobs.cs                   constructor and plumbing shared by the area
+└── GetOutput/
+    ├── IControlMJobs.GetOutput.cs    the interface member and its XML documentation
+    ├── ControlMJobs.GetOutput.cs     the method
+    └── ...                           contract types, when the feature has any
+
+src/ControlM.Simulator/Jobs/
+├── JobInstance.cs                    domain model owned by the area
+└── GetOutput/
+    └── GetOutputEndpoint.cs          HTTP in, domain call, HTTP out
+
+tests/ControlM.Client.Tests/Jobs/GetOutput/
+tests/ControlM.Simulator.Tests/Jobs/GetOutput/
+tests/ControlM.Conformance.Tests/Jobs/GetOutput/
+```
 
 ## Comments
 
@@ -51,6 +79,14 @@ Follow DRY and SOLID, and make every abstraction earn its place.
 
 **An abstraction must carry its weight.** Introduce an interface, base class or generic only for a real boundary, a test seam, or a second implementation that exists today. No layers that only forward calls, no patterns for their own sake, no framework inside the project. When the principles and simplicity pull apart, choose the simpler design.
 
+## Dependencies
+
+- **Prefer the base framework.** Reach for the .NET base libraries and Microsoft's own packages first.
+- **A third-party package is a decision, not a convenience.** Adding one requires a line in `docs/requirements.md` naming the package and why it is needed, in the same change that references it. This covers packages the repository references directly, not what they bring with them.
+- **Do not hand-write what a well-known package does well** when the alternative is a large or risky amount of code. Say so and propose the package.
+- **Make it visible.** A pull request that adds a package lists it under "New dependencies" at the top of its description, with its license and the reason.
+- Package versions live in `Directory.Packages.props`. Add a package only when code first uses it.
+
 ## Testing
 
 All behavior is built test first, one behavior per cycle.
@@ -65,3 +101,12 @@ All behavior is built test first, one behavior per cycle.
 - Substitute only at true boundaries: time, the network and the file system. Do not mock this project's own classes.
 - Tests never sleep or read the wall clock.
 - Scaffolding, build configuration, CI and documentation do not need a test first.
+
+Each test project is defined by what is on the other end of the wire:
+
+| Project | Tests | Other end |
+| --- | --- | --- |
+| `ControlM.Client.Tests` | The client alone: fixture deserialization, error mapping, retry, authentication, paging | A stub HTTP handler returning fixtures |
+| `ControlM.Simulator.Tests` | The simulator alone: raw HTTP responses compared with fixtures, and domain rules directly | A raw `HttpClient`, or no HTTP at all |
+| `ControlM.Conformance.Tests` | The typed client against a server | The in-process simulator, or a real server on demand |
+| `ControlM.SpecCheck.Tests` | The spec comparison | Small OpenAPI documents written for this project |
