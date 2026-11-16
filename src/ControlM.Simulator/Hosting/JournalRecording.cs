@@ -19,10 +19,13 @@ internal sealed class JournalRecording(RequestJournal journal, TimeProvider time
             request.Method,
             request.Path.Value ?? string.Empty,
             QueryWithoutMark(request.QueryString),
-            new Dictionary<string, string>(),
+            HeadersAsReceived(request.Headers),
             arrival,
             context.Response.StatusCode));
     }
+
+    private static Dictionary<string, string> HeadersAsReceived(IHeaderDictionary headers) =>
+        headers.ToDictionary(header => header.Key, header => header.Value.ToString(), StringComparer.OrdinalIgnoreCase);
 
     private static string QueryWithoutMark(QueryString query) =>
         query.HasValue ? query.Value![1..] : string.Empty;
