@@ -106,6 +106,23 @@ public sealed class SessionLoginTests
         stub.Requests[3].Headers.GetValueOrDefault("Authorization").ShouldBe(["Bearer SIMTOKEN2"]);
     }
 
+    [Test]
+    public async Task A_resend_answered_401_throws_the_authentication_exception_for_the_call_and_sends_nothing_more()
+    {
+        var stub = StubHandler.Returning(HttpStatusCode.Unauthorized, InvalidToken)
+            .AnsweringInTurn(_loginPath, (HttpStatusCode.OK, LoginSuccess), (HttpStatusCode.OK, SecondLoginSuccess));
+        var client = TestClient.CreateWithSessionLogin(stub);
+
+        var exception = await Should.ThrowAsync<ControlMAuthenticationException>(
+            () => client.SendAsync<JsonElement>(HttpMethod.Get, "/config/servers"));
+
+        exception.Operation.ShouldBeNull();
+        exception.Method.ShouldBe(HttpMethod.Get);
+        exception.Path.ShouldBe("/config/servers");
+        exception.Errors.ShouldHaveSingleItem().ShouldBe(new ControlMError("User not found. Session token is invalid or expired."));
+        stub.Requests.Select(r => r.Uri.AbsolutePath).ShouldBe([_loginPath, _serversPath, _loginPath, _serversPath]);
+    }
+
     private static string LoginSuccess => LoginFixture("Login.success.json");
 
     private static string SecondLoginSuccess => LoginSuccess.Replace("SIMTOKEN1", "SIMTOKEN2", StringComparison.Ordinal);
