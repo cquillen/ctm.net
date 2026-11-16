@@ -57,13 +57,20 @@ public sealed class CredentialStore
             return LogOutApiKey(apiKey!);
         }
 
-        var token = BearerToken(authorization)!;
+        if (BearerToken(authorization) is not { } token)
+        {
+            return LogOutOtherAuthorization(authorization);
+        }
+
         _sessions.TryRemove(token, out _);
         return LogoutOutcome.Succeeded(token);
     }
 
     // Assumed (requirements section 4.8): no real server has been sent a logout with an API key.
     private static LogoutOutcome LogOutApiKey(string apiKey) => LogoutOutcome.Succeeded(apiKey);
+
+    // Assumed (requirements section 4.8): no real server has been sent a logout whose Authorization is not a bearer token.
+    private static LogoutOutcome LogOutOtherAuthorization(string authorization) => LogoutOutcome.Succeeded(authorization);
 
     internal CredentialFailure? Check(string? apiKey, string? authorization)
     {
