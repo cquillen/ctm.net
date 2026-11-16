@@ -111,7 +111,7 @@ Both authentication schemes are supported: session login with a bearer token, an
 
 One root interface, `IControlMClient`, exposes four of the areas as properties, plus the low-level `SendAsync<T>` described below. Authentication is configured at registration (`services.AddControlMClient(o => ...)` with `UseSessionLogin` or `UseApiKey`) and is not part of the interface. The interface can be faked in the consumer's unit tests.
 
-`ControlMClientOptions` is an immutable record, so the registration callback returns the options to use rather than setting them: `services.AddControlMClient(o => o with { Endpoint = endpoint })`. `Endpoint` includes the `/automation-api` prefix, and a missing one fails when the client is first resolved.
+`ControlMClientOptions` follows the standard .NET options pattern: the registration callback sets its properties, `services.AddControlMClient(o => o.Endpoint = endpoint)`, as `ControlMSimulator.StartAsync` does in section 5.2. `Endpoint` includes the `/automation-api` prefix, and a missing one fails when the client is first resolved.
 
 | Area | Members |
 | --- | --- |
