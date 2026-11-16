@@ -52,3 +52,17 @@ Use `.github/pull_request_template.md` and fill in every section. "New dependenc
 - **No credentials or real endpoints.**
 - **Dependencies must be permissively licensed** (MIT, Apache-2.0, BSD). Keep the client's runtime dependencies to a minimum.
 - **If code is ported or adapted from BMC's Python client**, add a `THIRD-PARTY-NOTICES` file with the full BSD 3-Clause notice and BMC's copyright line, and mark the affected files. Prefer writing the C# fresh so this is not needed.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live in this repository's GitHub Issues, through the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default triage labels, each named for its role: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` at the repository root and ADRs in `docs/adr/`, both created when first needed. See `docs/agents/domain.md`.
