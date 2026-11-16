@@ -3,7 +3,7 @@ using ControlM.Fixtures;
 using ControlM.Simulator.Hosting;
 using Shouldly;
 
-namespace ControlM.Simulator.Tests.Operations.UnknownOperation;
+namespace ControlM.Simulator.Tests.Operations;
 
 public sealed class WrongMethodTests
 {

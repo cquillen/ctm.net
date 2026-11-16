@@ -4,7 +4,7 @@ using ControlM.Fixtures;
 using ControlM.Simulator.Hosting;
 using Shouldly;
 
-namespace ControlM.Simulator.Tests.Authentication.ApiKey;
+namespace ControlM.Simulator.Tests.Authentication;
 
 public sealed class ApiKeyTests
 {
