@@ -18,4 +18,19 @@ public sealed class SendAsyncTests
         request.Method.ShouldBe(HttpMethod.Put);
         request.Uri.AbsoluteUri.ShouldBe("https://host1.test:8443/automation-api/sample/path?name=FOLDER1&limit=10");
     }
+
+    [Test]
+    public async Task A_successful_response_is_deserialized_and_its_unknown_properties_are_ignored()
+    {
+        var stub = StubHandler.Returning(
+            HttpStatusCode.OK,
+            """{"name":"SERVER1","state":"Up","addedInLaterVersion":{"anything":1}}""");
+        var client = TestClient.Create(stub);
+
+        var server = await client.SendAsync<SampleServer>(HttpMethod.Get, "/sample/server");
+
+        server.ShouldBe(new SampleServer("SERVER1", "Up"));
+    }
+
+    internal sealed record SampleServer(string Name, string State);
 }
