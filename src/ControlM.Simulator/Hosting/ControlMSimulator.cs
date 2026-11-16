@@ -31,7 +31,7 @@ public sealed class ControlMSimulator : IAsyncDisposable
     }
 
     /// <summary>
-    /// The credentials this instance accepts: API keys and users. Seed a key here to send it over a raw
+    /// The credentials this instance accepts: API keys, users and their sessions. Seed a key here to send it over a raw
     /// <see cref="HttpClient"/>, or a user for a client created with <c>o =&gt; o.UseSessionLogin(...)</c>.
     /// </summary>
     public CredentialStore Credentials { get; }
