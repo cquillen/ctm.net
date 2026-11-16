@@ -60,6 +60,7 @@ Some areas hold what every operation shares:
 | Area | Project | Meaning |
 | --- | --- | --- |
 | `Serialization` | Client | The one set of JSON options for every request and response body. |
+| `Serialization` | Simulator | The one set of JSON options for every response body the simulator writes. |
 | `Operations` | Client | The operation table: the name, method and path of every implemented operation. |
 | `Operations` | Simulator | The known operations the simulator does not implement and their 501 responses, and the 404 for an unknown operation. |
 | `Errors` | Client | The `ErrorList` envelope and the exceptions it maps to. |
@@ -81,7 +82,7 @@ The project root holds only the entry point: in the client, `IControlMClient`, i
 An area may use the areas before it in these lists, never one after it:
 
 - **Client:** `Serialization`, `Operations`, `Errors`, `Tls`, `Retry`, `Capture`, `Authentication`, `Topology`, `Deployment`, `Jobs`, `Orders`.
-- **Simulator:** `Operations`, `Errors`, `Journal`, `Faults`, `Authentication`, `Topology`, `VirtualFiles`, `JobTypes`, `Deployment`, `Jobs`, `Orders`, `Scenarios`, `Hosting`.
+- **Simulator:** `Serialization`, `Errors`, `Operations`, `Journal`, `Faults`, `Authentication`, `Topology`, `VirtualFiles`, `JobTypes`, `Deployment`, `Jobs`, `Orders`, `Scenarios`, `Hosting`.
 - **SpecCheck:** `SpecReading`, `Reporting`, then the comparison areas, which do not use each other.
 
 Shared identifiers belong to the earliest area whose concept they are: `ServerName` to `Topology`; `JobRef` and `DefinitionDocument` to `Deployment`; `JobId`, `JobStatus` and `JobSnapshot` to `Jobs`; `RunId` to `Orders`.
