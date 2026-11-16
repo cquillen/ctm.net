@@ -23,7 +23,16 @@ public sealed class ControlMSimulator : IAsyncDisposable
     private readonly ConcurrentBag<ServiceProvider> _clientProviders = [];
     private readonly ApiKeySequence _apiKeys = new();
 
-    private ControlMSimulator(WebApplication app) => _app = app;
+    private ControlMSimulator(WebApplication app, CredentialStore credentials)
+    {
+        _app = app;
+        Credentials = credentials;
+    }
+
+    /// <summary>
+    /// The credentials this instance accepts. Seed one here to send it over a raw <see cref="HttpClient"/>.
+    /// </summary>
+    public CredentialStore Credentials { get; }
 
     /// <summary>
     /// Starts a simulator instance.
@@ -41,10 +50,11 @@ public sealed class ControlMSimulator : IAsyncDisposable
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseTestServer();
         var app = builder.Build();
+        var credentials = new CredentialStore();
         MapOperations(app.MapGroup(ApiPath.Base).AddEndpointFilter(new CredentialFilter()));
         UnknownOperationEndpoint.Map(app);
         await app.StartAsync(cancellationToken);
-        return new ControlMSimulator(app);
+        return new ControlMSimulator(app, credentials);
     }
 
     // The one registration of each implemented operation.
