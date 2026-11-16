@@ -33,4 +33,18 @@ public sealed class RefusedAndUnmatchedTests
         entry.Path.ShouldBe("/automation-api/config/nowhere");
         entry.Status.ShouldBe(404);
     }
+
+    [Test]
+    public async Task A_path_outside_the_api_is_unmatched_with_its_whole_path()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        using var http = simulator.CreateHttpClient();
+
+        using var response = await http.GetAsync(new Uri("/config/servers", UriKind.Relative));
+
+        var entry = simulator.Journal.Unmatched.ShouldHaveSingleItem();
+        entry.Operation.ShouldBeNull();
+        entry.Path.ShouldBe("/config/servers");
+        entry.Status.ShouldBe(404);
+    }
 }
