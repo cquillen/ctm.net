@@ -29,4 +29,23 @@ public sealed class AddControlMClientTests
 
         exception.Message.ShouldContain("UseApiKey");
     }
+
+    [Test]
+    [Arguments(null)]
+    [Arguments("")]
+    [Arguments(" ")]
+    public void A_blank_api_key_fails_when_the_client_is_first_resolved(string? key)
+    {
+        var services = new ServiceCollection();
+        services.AddControlMClient(o =>
+        {
+            o.Endpoint = new Uri(TestClient.Endpoint);
+            o.UseApiKey(key!);
+        });
+        using var provider = services.BuildServiceProvider();
+
+        var exception = Should.Throw<OptionsValidationException>(provider.GetRequiredService<IControlMClient>);
+
+        exception.Message.ShouldContain("UseApiKey");
+    }
 }
