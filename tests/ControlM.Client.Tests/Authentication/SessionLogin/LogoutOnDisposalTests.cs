@@ -56,6 +56,18 @@ public sealed class LogoutOnDisposalTests
         stub.Requests.Select(r => r.Uri.AbsolutePath).ShouldBe([_loginPath, "/automation-api/config/servers", _logoutPath]);
     }
 
+    [Test]
+    public async Task A_logout_failing_with_a_network_error_is_swallowed_and_makes_no_login()
+    {
+        var stub = LoggedInStub().Failing(_logoutPath);
+        var provider = TestClient.BuildWithSessionLogin(stub);
+        await provider.GetRequiredService<IControlMClient>().SendAsync<JsonElement>(HttpMethod.Get, "/config/servers");
+
+        await Should.NotThrowAsync(provider.DisposeAsync().AsTask());
+
+        stub.Requests.Select(r => r.Uri.AbsolutePath).ShouldBe([_loginPath, "/automation-api/config/servers", _logoutPath]);
+    }
+
     private static StubHandler LoggedInStub() =>
         StubHandler.Returning(HttpStatusCode.OK, "[]")
             .Answering(_loginPath, HttpStatusCode.OK, Fixture("Login", "Login.success.json"));
