@@ -65,4 +65,24 @@ public sealed class ErrorMappingTests
         exception.Errors.ShouldBeEmpty();
         exception.ResponseBody.ShouldBe(body);
     }
+
+    [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public async Task The_exception_carries_the_method_and_path_of_the_call_and_no_operation(bool withResult)
+    {
+        var stub = StubHandler.Returning(
+            HttpStatusCode.NotFound,
+            JsonFixture.Load("Operations", "UnknownOperation", "UnknownOperation.get.json"));
+        var client = TestClient.Create(stub);
+
+        Func<Task> send = withResult
+            ? () => client.SendAsync<JsonElement>(HttpMethod.Delete, "/sample/path?name=FOLDER1")
+            : () => client.SendAsync(HttpMethod.Delete, "/sample/path?name=FOLDER1");
+        var exception = await Should.ThrowAsync<ControlMApiException>(send);
+
+        exception.Method.ShouldBe(HttpMethod.Delete);
+        exception.Path.ShouldBe("/sample/path?name=FOLDER1");
+        exception.Operation.ShouldBeNull();
+    }
 }
