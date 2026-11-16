@@ -69,4 +69,17 @@ public sealed class RequestJournalTests
 
         snapshot.Count.ShouldBe(1);
     }
+
+    [Test]
+    public async Task Two_instances_keep_separate_journals()
+    {
+        await using var first = await ControlMSimulator.StartAsync();
+        await using var second = await ControlMSimulator.StartAsync();
+        using var http = first.CreateHttpClient();
+
+        using var response = await http.GetAsync(GetServers);
+
+        first.Journal.Entries.Count.ShouldBe(1);
+        second.Journal.Entries.ShouldBeEmpty();
+    }
 }
