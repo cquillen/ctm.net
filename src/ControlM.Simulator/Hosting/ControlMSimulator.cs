@@ -62,11 +62,14 @@ public sealed class ControlMSimulator : IAsyncDisposable
         builder.WebHost.UseTestServer();
         var app = builder.Build();
         var credentials = new CredentialStore(options.TimeProvider, options.SessionLifetime);
+        var journal = new RequestJournal();
+        app.UseRouting();
+        app.Use(new JournalRecording(journal).InvokeAsync);
         MapSessionOperations(app.MapGroup(ApiPath.Base), credentials);
         MapOperations(app.MapGroup(ApiPath.Base).AddEndpointFilter(new CredentialFilter(credentials)));
         UnknownOperationEndpoint.Map(app).AddEndpointFilter(new WrongMethodFilter(app.Services.GetRequiredService<EndpointDataSource>()));
         await app.StartAsync(cancellationToken);
-        return new ControlMSimulator(app, credentials, new RequestJournal());
+        return new ControlMSimulator(app, credentials, journal);
     }
 
     // The one registration of each implemented operation. The session operations check no credential of their own.
