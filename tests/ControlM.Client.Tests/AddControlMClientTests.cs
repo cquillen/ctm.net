@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Shouldly;
 
 namespace ControlM.Client.Tests;
@@ -12,7 +13,7 @@ public sealed class AddControlMClientTests
         services.AddControlMClient(_ => { });
         using var provider = services.BuildServiceProvider();
 
-        var exception = Should.Throw<InvalidOperationException>(provider.GetRequiredService<IControlMClient>);
+        var exception = Should.Throw<OptionsValidationException>(provider.GetRequiredService<IControlMClient>);
 
         exception.Message.ShouldContain(nameof(ControlMClientOptions.Endpoint));
     }
