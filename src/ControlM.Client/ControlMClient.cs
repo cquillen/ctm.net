@@ -11,7 +11,7 @@ internal sealed class ControlMClient(HttpClient httpClient, ControlMClientOption
     {
         using var request = new HttpRequestMessage(method, RequestUri(path))
         {
-            Content = JsonContent.Create(body, options: ControlMJson.Options),
+            Content = body is null ? null : JsonContent.Create(body, options: ControlMJson.Options),
         };
         using var response = await httpClient.SendAsync(request, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<T>(ControlMJson.Options, cancellationToken))!;
