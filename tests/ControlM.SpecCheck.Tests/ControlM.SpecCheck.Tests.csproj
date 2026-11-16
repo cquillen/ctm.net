@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ControlM.SpecCheck\ControlM.SpecCheck.csproj" />
+  </ItemGroup>
+</Project>

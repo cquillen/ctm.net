@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ControlM.Client\ControlM.Client.csproj" />
+    <ProjectReference Include="..\..\src\ControlM.Simulator\ControlM.Simulator.csproj" />
+  </ItemGroup>
+</Project>
