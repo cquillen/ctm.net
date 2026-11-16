@@ -5,13 +5,17 @@ namespace ControlM.Client;
 
 internal sealed class ControlMClient(HttpClient httpClient, ControlMClientOptions options) : IControlMClient
 {
+    private readonly string _endpoint = options.Endpoint!.AbsoluteUri.TrimEnd('/');
+
     public async Task<T> SendAsync<T>(HttpMethod method, string path, object? body = null, CancellationToken cancellationToken = default)
     {
-        using var request = new HttpRequestMessage(method, new Uri(options.Endpoint + path));
+        using var request = new HttpRequestMessage(method, RequestUri(path));
         using var response = await httpClient.SendAsync(request, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<T>(ControlMJson.Options, cancellationToken))!;
     }
 
     public Task SendAsync(HttpMethod method, string path, object? body = null, CancellationToken cancellationToken = default) =>
         throw new NotImplementedException();
+
+    private Uri RequestUri(string path) => new($"{_endpoint}/{path.TrimStart('/')}");
 }
