@@ -123,6 +123,32 @@ public sealed class SessionLoginTests
         stub.Requests.Select(r => r.Uri.AbsolutePath).ShouldBe([_loginPath, _serversPath, _loginPath, _serversPath]);
     }
 
+    [Test]
+    [Timeout(10_000)]
+    public async Task A_call_refused_for_a_token_already_replaced_resends_with_the_current_token_without_logging_in(
+        CancellationToken testTimeout)
+    {
+        const string slowPath = "/automation-api/sample/slow";
+        var stub = StubHandler.Returning(HttpStatusCode.OK, "[]")
+            .AnsweringInTurn(_loginPath, (HttpStatusCode.OK, LoginSuccess), (HttpStatusCode.OK, SecondLoginSuccess))
+            .AnsweringInTurn(_serversPath, (HttpStatusCode.OK, "[]"), (HttpStatusCode.Unauthorized, InvalidToken), (HttpStatusCode.OK, "[]"))
+            .AnsweringInTurn(slowPath, (HttpStatusCode.Unauthorized, InvalidToken), (HttpStatusCode.OK, "[]"));
+        var hanging = new HangingHandler(stub);
+        var client = TestClient.CreateWithSessionLogin(hanging);
+        await client.SendAsync(HttpMethod.Get, "/config/servers", cancellationToken: testTimeout);
+        hanging.Hold(slowPath);
+        var slow = client.SendAsync(HttpMethod.Get, "/sample/slow", cancellationToken: testTimeout);
+        await hanging.Entered.WaitAsync(testTimeout);
+
+        await client.SendAsync(HttpMethod.Get, "/config/servers", cancellationToken: testTimeout);
+        hanging.Release();
+        await slow;
+
+        stub.Requests.Count(r => r.Uri.AbsolutePath == _loginPath).ShouldBe(2);
+        var slowCalls = stub.Requests.Where(r => r.Uri.AbsolutePath == slowPath).ToList();
+        slowCalls.Select(r => r.Headers["Authorization"].Single()).ShouldBe(["Bearer SIMTOKEN1", "Bearer SIMTOKEN2"]);
+    }
+
     private static string LoginSuccess => LoginFixture("Login.success.json");
 
     private static string SecondLoginSuccess => LoginSuccess.Replace("SIMTOKEN1", "SIMTOKEN2", StringComparison.Ordinal);
