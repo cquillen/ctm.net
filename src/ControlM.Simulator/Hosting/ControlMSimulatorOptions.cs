@@ -15,5 +15,5 @@ public sealed class ControlMSimulatorOptions
     /// How long a session may go unused before its token is refused. Every request authenticated with the token
     /// restarts this time. Defaults to 30 minutes, as BMC documents.
     /// </summary>
-    public TimeSpan SessionLifetime { get; set; }
+    public TimeSpan SessionLifetime { get; set; } = TimeSpan.FromMinutes(30);
 }
