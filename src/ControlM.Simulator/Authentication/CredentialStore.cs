@@ -45,6 +45,13 @@ public sealed class CredentialStore
         return LoginOutcome.Succeeded(token);
     }
 
+    internal LogoutOutcome Logout(string? apiKey, string? authorization)
+    {
+        var token = BearerToken(authorization!)!;
+        _sessions.TryRemove(token, out _);
+        return LogoutOutcome.Succeeded(token);
+    }
+
     internal CredentialFailure? Check(string? apiKey, string? authorization)
     {
         var hasApiKey = !string.IsNullOrEmpty(apiKey);
@@ -68,8 +75,11 @@ public sealed class CredentialStore
     }
 
     private bool IsLiveSession(string authorization) =>
+        BearerToken(authorization) is { } token && _sessions.ContainsKey(token);
+
+    private static string? BearerToken(string authorization) =>
         AuthenticationHeaderValue.TryParse(authorization, out var header)
         && string.Equals(header.Scheme, SessionLoginScheme.AuthenticationScheme, StringComparison.OrdinalIgnoreCase)
-        && header.Parameter is { } token
-        && _sessions.ContainsKey(token);
+            ? header.Parameter
+            : null;
 }

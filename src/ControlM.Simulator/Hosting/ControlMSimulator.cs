@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using ControlM.Client;
 using ControlM.Simulator.Authentication;
 using ControlM.Simulator.Authentication.Login;
+using ControlM.Simulator.Authentication.Logout;
 using ControlM.Simulator.Operations;
 using ControlM.Simulator.Operations.UnknownOperation;
 using ControlM.Simulator.Topology.GetServers;
@@ -61,8 +62,11 @@ public sealed class ControlMSimulator : IAsyncDisposable
     }
 
     // The one registration of each implemented operation. The session operations check no credential of their own.
-    private static void MapSessionOperations(IEndpointRouteBuilder api, CredentialStore credentials) =>
+    private static void MapSessionOperations(IEndpointRouteBuilder api, CredentialStore credentials)
+    {
         LoginEndpoint.Map(api, credentials);
+        LogoutEndpoint.Map(api, credentials);
+    }
 
     private static void MapOperations(IEndpointRouteBuilder api) => GetServersEndpoint.Map(api);
 
