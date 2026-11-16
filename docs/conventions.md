@@ -13,6 +13,17 @@ These rules apply to all code in this repository.
 - Package versions live in `Directory.Packages.props`. Add a package only when code first uses it.
 - Add `InternalsVisibleTo` only when a test first needs it.
 
+## Organization
+
+Organize by feature, never by type. Every feature lives in an area folder, and each namespace matches its folder: `<Area>/<Feature>/`.
+
+- **Areas are required.** An area groups related features and is named for what it covers in the domain, not for a URL segment or a kind of class. `docs/requirements.md` lists the areas and what each means.
+- **A feature is self-contained.** A feature is one operation or one job type. Its contract types, client method, handler, validation and helpers sit together in one folder inside its area. Reading or changing a feature means opening one folder.
+- **No type-based folders.** No `Models`, `Controllers`, `Services`, `Handlers`, `Dtos`, `Helpers` or `Utilities`. The default ASP.NET MVC layout is the counter-example: one feature scattered across a folder per kind of class.
+- **The public API uses the same names.** An area's folder, namespace and public interface share one name, and a feature's folder matches its public method.
+- **Shared code needs a real name.** Code used by several features lives in a folder named for the concept it implements, not in `Common/` or `Shared/`.
+- **Tests mirror the area and feature folders** of the project they test.
+
 ## Comments
 
 Code explains itself through names and small methods. A comment must earn its place: if deleting it costs a reader nothing, delete it. Before writing one, try to make it unnecessary by renaming or extracting.
@@ -33,7 +44,7 @@ Follow DRY and SOLID, and make every abstraction earn its place.
 
 - **DRY.** Every piece of logic and every concept has one definition: status-string mapping, route paths, JSON options, the error envelope, the operation table. A second copy of the same logic is a defect; extract it. The one exception is code that looks alike but represents different concepts and would change for different reasons.
 - **Single responsibility.** A class has one reason to change. No class mixes HTTP, domain rules and serialization.
-- **Open/closed.** Code is grouped by operation within each area (session, deploy, run, config). Adding an operation or a job type adds files and one registration. It does not edit existing handlers or a central switch.
+- **Open/closed.** Adding an operation or a job type adds a feature folder and one registration. It does not edit existing handlers or a central switch.
 - **Liskov.** Every implementation of an interface honors the same contract.
 - **Interface segregation.** Small interfaces per area. No consumer depends on members it does not use.
 - **Dependency inversion.** Depend on abstractions at true boundaries: time, HTTP, authentication, simulator state. Constructor injection only; no service locator, no mutable static state.
