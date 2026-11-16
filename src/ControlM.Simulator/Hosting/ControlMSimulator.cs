@@ -2,8 +2,10 @@ using System.Collections.Concurrent;
 using ControlM.Client;
 using ControlM.Simulator.Operations;
 using ControlM.Simulator.Operations.UnknownOperation;
+using ControlM.Simulator.Topology.GetServers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -36,10 +38,14 @@ public sealed class ControlMSimulator : IAsyncDisposable
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseTestServer();
         var app = builder.Build();
+        MapOperations(app.MapGroup(ApiPath.Base));
         UnknownOperationEndpoint.Map(app);
         await app.StartAsync(cancellationToken);
         return new ControlMSimulator(app);
     }
+
+    // The one registration of each implemented operation.
+    private static void MapOperations(IEndpointRouteBuilder api) => GetServersEndpoint.Map(api);
 
     /// <summary>
     /// Returns a raw <see cref="HttpClient"/> whose base address is the root of the simulator, so a request
