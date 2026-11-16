@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 using ControlM.Fixtures;
 using ControlM.Simulator.Hosting;
@@ -68,6 +69,36 @@ public sealed class LoginTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await response.Content.ReadAsStringAsync()).ShouldEqualJson(LoginFixture("Login.not-json.json"));
+    }
+
+    // That login ignores credential headers is assumed (requirements section 4.8).
+    [Test]
+    [Arguments(true, false)]
+    [Arguments(false, true)]
+    [Arguments(true, true)]
+    public async Task A_login_carrying_credential_headers_still_succeeds(bool withApiKey, bool withAuthorization)
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        simulator.Credentials.AddUser("USER1", "PASSWORD1");
+        using var http = simulator.CreateHttpClient();
+        using var request = new HttpRequestMessage(HttpMethod.Post, Login)
+        {
+            Content = Json("""{"username":"USER1","password":"PASSWORD1"}"""),
+        };
+        if (withApiKey)
+        {
+            request.Headers.Add("x-api-key", "APIKEY1");
+        }
+
+        if (withAuthorization)
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "TOKEN1");
+        }
+
+        using var response = await http.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync()).ShouldEqualJson(LoginFixture("Login.success.json"));
     }
 
     private static StringContent Json(string body) => new(body, Encoding.UTF8, "application/json");
