@@ -1,6 +1,5 @@
 using ControlM.Client.Authentication.ApiKey;
 using ControlM.Simulator.Authentication;
-using ControlM.Simulator.Serialization;
 using Microsoft.AspNetCore.Http;
 
 namespace ControlM.Simulator.Hosting;
@@ -15,7 +14,7 @@ internal sealed class CredentialFilter(CredentialStore credentials) : IEndpointF
             headers.Authorization.FirstOrDefault());
         if (failure is not null)
         {
-            return Results.Json(failure.Body, SimulatorJson.Options, statusCode: (int)failure.StatusCode);
+            return CredentialFailureEndpoint.Answer(failure);
         }
 
         return await next(context);

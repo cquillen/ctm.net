@@ -27,18 +27,15 @@ internal static class LoginEndpoint
         }
         catch (JsonException)
         {
-            return Failure(CredentialFailure.InvalidLoginBody());
+            return CredentialFailureEndpoint.Answer(CredentialFailure.InvalidLoginBody());
         }
 
         var outcome = credentials.Login(body?.Username, body?.Password);
         if (outcome.Failure is { } failure)
         {
-            return Failure(failure);
+            return CredentialFailureEndpoint.Answer(failure);
         }
 
         return Results.Json(LoginResponse.Success(body!.Username, outcome.Token!), SimulatorJson.Options);
     }
-
-    private static IResult Failure(CredentialFailure failure) =>
-        Results.Json(failure.Body, SimulatorJson.Options, statusCode: (int)failure.StatusCode);
 }
