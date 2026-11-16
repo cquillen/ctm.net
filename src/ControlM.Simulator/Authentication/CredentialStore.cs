@@ -64,7 +64,51 @@ public sealed class CredentialStore
         return LoginOutcome.Succeeded(token);
     }
 
+    internal LogoutOutcome Logout(string? apiKey, string? authorization)
+    {
+        if (HeaderPresenceFailure(apiKey, authorization) is { } failure)
+        {
+            return LogoutOutcome.Failed(failure);
+        }
+
+        if (authorization is null)
+        {
+            return LogOutApiKey(apiKey!);
+        }
+
+        if (BearerToken(authorization) is not { } token)
+        {
+            return LogOutOtherAuthorization(authorization);
+        }
+
+        _sessions.TryRemove(token, out _);
+        return LogoutOutcome.Succeeded(token);
+    }
+
+    // Assumed (requirements section 4.8): no real server has been sent a logout with an API key.
+    private static LogoutOutcome LogOutApiKey(string apiKey) => LogoutOutcome.Succeeded(apiKey);
+
+    // Assumed (requirements section 4.8): no real server has been sent a logout whose Authorization is not a bearer token.
+    private static LogoutOutcome LogOutOtherAuthorization(string authorization) => LogoutOutcome.Succeeded(authorization);
+
     internal CredentialFailure? Check(string? apiKey, string? authorization)
+    {
+        if (HeaderPresenceFailure(apiKey, authorization) is { } failure)
+        {
+            return failure;
+        }
+
+        if (authorization is not null)
+        {
+            return TryUseSession(authorization) ? null : CredentialFailure.InvalidOrExpiredToken();
+        }
+
+        return _apiKeys.ContainsKey(apiKey!) ? null : CredentialFailure.UnknownApiKey();
+    }
+
+    // The first step of every credential check, and the only one logout applies: which headers are present, before
+    // any value is read.
+    private static CredentialFailure? HeaderPresenceFailure(string? apiKey, string? authorization)
     {
         var hasApiKey = !string.IsNullOrEmpty(apiKey);
         var hasAuthorization = authorization is not null;
@@ -73,23 +117,17 @@ public sealed class CredentialStore
             return CredentialFailure.NoCredential();
         }
 
-        if (hasApiKey && hasAuthorization)
-        {
-            return CredentialFailure.BothCredentialHeaders();
-        }
-
-        if (hasAuthorization)
-        {
-            return TryUseSession(authorization!) ? null : CredentialFailure.InvalidOrExpiredToken();
-        }
-
-        return _apiKeys.ContainsKey(apiKey!) ? null : CredentialFailure.UnknownApiKey();
+        return hasApiKey && hasAuthorization ? CredentialFailure.BothCredentialHeaders() : null;
     }
 
     private bool TryUseSession(string authorization) =>
-        AuthenticationHeaderValue.TryParse(authorization, out var header)
-        && string.Equals(header.Scheme, SessionLoginScheme.AuthenticationScheme, StringComparison.OrdinalIgnoreCase)
-        && header.Parameter is { } token
+        BearerToken(authorization) is { } token
         && _sessions.TryGetValue(token, out var session)
         && session.TryUse(_time.GetUtcNow(), _sessionLifetime);
+
+    private static string? BearerToken(string authorization) =>
+        AuthenticationHeaderValue.TryParse(authorization, out var header)
+        && string.Equals(header.Scheme, SessionLoginScheme.AuthenticationScheme, StringComparison.OrdinalIgnoreCase)
+            ? header.Parameter
+            : null;
 }

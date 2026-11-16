@@ -13,6 +13,7 @@ internal sealed class StubHandler(HttpStatusCode status, string responseBody) : 
 {
     private readonly Lock _gate = new();
     private readonly Dictionary<string, Queue<(HttpStatusCode Status, string Body)>> _byPath = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _failingPaths = new(StringComparer.Ordinal);
 
     public List<RecordedRequest> Requests { get; } = [];
 
@@ -28,11 +29,22 @@ internal sealed class StubHandler(HttpStatusCode status, string responseBody) : 
         return this;
     }
 
+    public StubHandler Failing(string absolutePath)
+    {
+        _failingPaths.Add(absolutePath);
+        return this;
+    }
+
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var body = await BodyOf(request, cancellationToken);
         var headers = request.Headers.ToDictionary(h => h.Key, h => h.Value, StringComparer.OrdinalIgnoreCase);
         var (answerStatus, answerBody) = Record(new RecordedRequest(request.Method, request.RequestUri!, body, headers));
+        if (_failingPaths.Contains(request.RequestUri!.AbsolutePath))
+        {
+            throw new HttpRequestException("The stub refused the connection.");
+        }
+
         return new HttpResponseMessage(answerStatus)
         {
             Content = new StringContent(answerBody, Encoding.UTF8, "application/json"),
