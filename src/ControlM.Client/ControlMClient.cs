@@ -1,3 +1,6 @@
+using System.Net.Http.Json;
+using ControlM.Client.Serialization;
+
 namespace ControlM.Client;
 
 internal sealed class ControlMClient(HttpClient httpClient, ControlMClientOptions options) : IControlMClient
@@ -6,7 +9,7 @@ internal sealed class ControlMClient(HttpClient httpClient, ControlMClientOption
     {
         using var request = new HttpRequestMessage(method, new Uri(options.Endpoint + path));
         using var response = await httpClient.SendAsync(request, cancellationToken);
-        return default!;
+        return (await response.Content.ReadFromJsonAsync<T>(ControlMJson.Options, cancellationToken))!;
     }
 
     public Task SendAsync(HttpMethod method, string path, object? body = null, CancellationToken cancellationToken = default) =>
