@@ -51,7 +51,7 @@ Done when the grilling's frontier is empty and the user has confirmed the shared
 
 ## 3. Settle
 
-1. If the decisions change `docs/requirements.md`, `GLOSSARY.md` or the ADRs, switch to a new branch `docs/<slug>` from an up-to-date `main` and write the changes. Run `sh eng/verify.sh`. Commit with a `docs:` subject and `Refs #<planning issue>` in the body. Open a PR from `.github/pull_request_template.md`, filling in every section.
+1. If the decisions change `docs/requirements.md`, `GLOSSARY.md` or the ADRs, create a worktree at `.claude/worktrees/<slug>` on a new branch `docs/<slug>` from an up-to-date `origin/main`, and write the changes there. The default checkout is read-only (`CLAUDE.md`, "Worktrees"). Run `sh eng/verify.sh` and every git command inside the worktree. Commit with a `docs:` subject and `Refs #<planning issue>` in the body. Open a PR from `.github/pull_request_template.md`, filling in every section.
 2. Post the settlement comment: the last round's decisions, plus the docs PR, or `none` with the reason no doc changed.
 3. Set the row to `grilled` and put the docs PR (or `none`) in its row.
 
@@ -59,7 +59,7 @@ Then stop and ask the user to merge the docs PR. Never merge it yourself. Done w
 
 ## 4. Hand off
 
-Check that the docs PR is merged, then switch to `main` and pull. Print the hand-off block from reference.md, so the user can run to-spec and to-tickets with it. They often run both in this session; carry them out as those skills direct, holding to the shape the block gives.
+Check that the docs PR is merged, then fetch `origin` and read the merged documents from `origin/main`. Print the hand-off block from reference.md, so the user can run to-spec and to-tickets with it. They often run both in this session; carry them out as those skills direct, holding to the shape the block gives.
 
 Done when the spec and its tickets exist.
 
@@ -70,6 +70,6 @@ Done when the spec and its tickets exist.
 3. **Update the row**: `planned`, with the spec (or specs), docs PR and session.
 4. **Retitle** the planning issue if the settled scope contradicts its title.
 5. Post the closing comment, then close the issue and confirm it is closed.
-6. **Clean up.** If the docs branch's PR is merged, delete the branch locally and on the remote. Leave the checkout on an up-to-date `main`.
+6. **Clean up.** If the docs branch's PR is merged, remove its worktree, then delete the branch locally and on the remote. Leave the default checkout untouched.
 
 Done when the row reads `planned`, the issue is closed, and the verify query shows every edge in place.

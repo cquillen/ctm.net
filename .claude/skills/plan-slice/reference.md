@@ -51,8 +51,9 @@ gh issue comment <n> --body-file claim.md
 ## Docs pull request
 
 ```sh
-git switch main && git pull --ff-only
-git switch -c docs/<slug>
+git fetch origin
+git worktree add .claude/worktrees/<slug> -b docs/<slug> origin/main
+cd .claude/worktrees/<slug>
 sh eng/verify.sh
 git commit -F commit.md
 git push -u origin docs/<slug>
@@ -60,6 +61,14 @@ gh pr create --title "docs: <summary>" --body-file pr.md
 ```
 
 Merged? `gh pr view <pr> --json state,mergedAt`.
+
+Once it is merged, from the repository root:
+
+```sh
+git worktree remove .claude/worktrees/<slug>
+git branch -D docs/<slug>
+git push origin --delete docs/<slug>
+```
 
 ## Verify query
 
