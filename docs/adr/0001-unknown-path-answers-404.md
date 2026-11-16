@@ -22,4 +22,5 @@ The simulator answers an unknown path with 404 and that body. A known but unimpl
 - An application sees the same response from the simulator as from a real server, and a conformance test of it can run against both.
 - The client maps this to `ControlMNotFoundException`, the same exception as a job or folder that does not exist. A caller that catches it can hide a mistyped path. The request journal marks a request that matched no operation, so a test can assert there were none.
 - A real operation that is missing from the simulator's hand-written list of known operations answers 404, where a real server would have served it. Keeping that list complete matters more than it did.
+- The route a real server decides first includes the method. A later probe, `PATCH /run/jobs/status`, answered 405 with `Allow: GET` and the same error shape: `{"errors":[{"message":"Method Not Allowed","code":"405","uri":"/run/jobs/status"}]}`. The simulator answers a wrong method on a real path the same way (requirements section 4.1).
 - Methods other than `GET`, and paths outside `/automation-api`, were not probed. Requirements section 4.8 records what is assumed for them.
