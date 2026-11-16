@@ -7,7 +7,7 @@ namespace ControlM.Simulator.Tests.Operations.UnknownOperation;
 
 public sealed class UnknownOperationTests
 {
-    private static readonly string Fixture = JsonFixture.Load("Operations", "UnknownOperation", "UnknownOperation.get.json");
+    private static string Fixture => JsonFixture.Load("Operations", "UnknownOperation", "UnknownOperation.get.json");
 
     [Test]
     public async Task A_get_to_an_unknown_path_answers_404_with_the_error_list()

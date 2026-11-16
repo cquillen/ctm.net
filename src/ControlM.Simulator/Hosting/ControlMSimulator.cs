@@ -1,3 +1,8 @@
+using ControlM.Simulator.Operations.UnknownOperation;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
+
 namespace ControlM.Simulator.Hosting;
 
 /// <summary>
@@ -6,24 +11,31 @@ namespace ControlM.Simulator.Hosting;
 /// </summary>
 public sealed class ControlMSimulator : IAsyncDisposable
 {
-    private ControlMSimulator()
-    {
-    }
+    private readonly WebApplication _app;
+
+    private ControlMSimulator(WebApplication app) => _app = app;
 
     /// <summary>
     /// Starts a simulator instance.
     /// </summary>
     /// <param name="cancellationToken">Cancels the start.</param>
     /// <returns>The started instance, which serves the Control-M API under <c>/automation-api</c>.</returns>
-    public static Task<ControlMSimulator> StartAsync(CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
+    public static async Task<ControlMSimulator> StartAsync(CancellationToken cancellationToken = default)
+    {
+        var builder = WebApplication.CreateSlimBuilder();
+        builder.WebHost.UseTestServer();
+        var app = builder.Build();
+        UnknownOperationEndpoint.Map(app);
+        await app.StartAsync(cancellationToken);
+        return new ControlMSimulator(app);
+    }
 
     /// <summary>
     /// Returns a raw <see cref="HttpClient"/> whose base address is the root of the simulator, so a request
     /// names the whole path, such as <c>/automation-api/run/jobs/status</c>.
     /// </summary>
-    public HttpClient CreateHttpClient() => throw new NotImplementedException();
+    public HttpClient CreateHttpClient() => _app.GetTestServer().CreateClient();
 
     /// <inheritdoc />
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    public ValueTask DisposeAsync() => _app.DisposeAsync();
 }
