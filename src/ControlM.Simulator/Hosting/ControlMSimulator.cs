@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using ControlM.Client;
+using ControlM.Simulator.Authentication;
 using ControlM.Simulator.Operations;
 using ControlM.Simulator.Operations.UnknownOperation;
 using ControlM.Simulator.Topology.GetServers;
@@ -19,6 +20,7 @@ public sealed class ControlMSimulator : IAsyncDisposable
 {
     private readonly WebApplication _app;
     private readonly ConcurrentBag<ServiceProvider> _clientProviders = [];
+    private readonly ApiKeySequence _apiKeys = new();
 
     private ControlMSimulator(WebApplication app) => _app = app;
 
@@ -55,17 +57,19 @@ public sealed class ControlMSimulator : IAsyncDisposable
 
     /// <summary>
     /// Returns a real <see cref="IControlMClient"/> whose requests reach this instance under <c>/automation-api</c>,
-    /// with no socket. The client is released when the simulator is disposed.
+    /// with no socket, authenticated with an API key the simulator generates: <c>SIMKEY1</c> for the first client
+    /// of an instance, <c>SIMKEY2</c> for the second, and so on. The client is released when the simulator is disposed.
     /// </summary>
     public IControlMClient CreateClient()
     {
         var server = _app.GetTestServer();
+        var apiKey = _apiKeys.Next();
         var services = new ServiceCollection();
         services
             .AddControlMClient(o =>
             {
                 o.Endpoint = new Uri(server.BaseAddress, ApiPath.Base);
-                o.UseApiKey("SIMKEY1");
+                o.UseApiKey(apiKey);
             })
             .ConfigurePrimaryHttpMessageHandler(server.CreateHandler);
         var provider = services.BuildServiceProvider();
