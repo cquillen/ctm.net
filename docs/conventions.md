@@ -11,7 +11,7 @@ These rules apply to all code in this repository.
 - Async end to end with `CancellationToken`. Never block on a task.
 - All timing reads from an injected `TimeProvider`.
 - No dead code and no commented-out code.
-- Data types are immutable records: contract types, identifiers, options, results and the snapshots the simulator hands out. The simulator's domain entities that change over time, such as a job instance, are classes that guard their own state and are never exposed directly.
+- Data types are immutable records: contract types, identifiers, results and the snapshots the simulator hands out. The simulator's domain entities that change over time, such as a job instance, are classes that guard their own state and are never exposed directly. Options are the exception: they follow the standard .NET pattern, a mutable `sealed class` set by an `Action<TOptions>` callback (`o => o.Endpoint = endpoint`) and validated when first used.
 - JSON is `System.Text.Json` only, with one shared options definition per project.
 - A class over about 300 lines or a method over about 40 needs a reason.
 - Add `InternalsVisibleTo` only when a test project, or another project in this solution that the requirements say depends on it, first needs it.
