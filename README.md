@@ -32,6 +32,7 @@ dotnet format
 | `src/ControlM.Simulator` | Simulator core, in-process host, test API and control API |
 | `src/ControlM.Simulator.Tool` | Thin executable that starts the standalone simulator host |
 | `src/ControlM.SpecCheck` | Compares the client and simulator with an OpenAPI document |
+| `samples/ControlM.Client.Sample` | Console sample that checks session login against a real server by hand; see its [README](samples/ControlM.Client.Sample/README.md) |
 | `tests/ControlM.Client.Tests` | Client tests |
 | `tests/ControlM.Simulator.Tests` | Simulator tests |
 | `tests/ControlM.Conformance.Tests` | One suite written against the client interface, runnable against the simulator or a real server |
