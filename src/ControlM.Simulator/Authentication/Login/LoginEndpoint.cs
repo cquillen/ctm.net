@@ -21,7 +21,12 @@ internal static class LoginEndpoint
     private static async Task<IResult> AnswerAsync(HttpRequest request, CredentialStore credentials, CancellationToken cancellationToken)
     {
         var body = await JsonSerializer.DeserializeAsync<LoginCredentials>(request.Body, SimulatorJson.Options, cancellationToken);
-        var token = credentials.Login(body!.Username, body.Password);
-        return Results.Json(LoginResponse.Success(body.Username, token), SimulatorJson.Options);
+        var outcome = credentials.Login(body?.Username, body?.Password);
+        if (outcome.Failure is { } failure)
+        {
+            return Results.Json(failure.Body, SimulatorJson.Options, statusCode: (int)failure.StatusCode);
+        }
+
+        return Results.Json(LoginResponse.Success(body!.Username, outcome.Token!), SimulatorJson.Options);
     }
 }

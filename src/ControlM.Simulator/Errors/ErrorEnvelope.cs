@@ -18,5 +18,7 @@ internal static class ErrorEnvelope
 
     public static ErrorList UnknownApiKey() => MessageOnly("Cannot validate token value, decode failed");
 
+    public static ErrorList IncorrectUsernameOrPassword() => MessageOnly("Failed to login: Incorrect username or password");
+
     private static ErrorList MessageOnly(string message) => new([new ControlMError(message)]);
 }

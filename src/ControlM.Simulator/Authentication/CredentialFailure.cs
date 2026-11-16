@@ -15,4 +15,7 @@ internal sealed record CredentialFailure(HttpStatusCode StatusCode, ErrorList Bo
         new(HttpStatusCode.Unauthorized, ErrorEnvelope.InvalidOrExpiredToken());
 
     public static CredentialFailure UnknownApiKey() => new(HttpStatusCode.BadRequest, ErrorEnvelope.UnknownApiKey());
+
+    public static CredentialFailure IncorrectUsernameOrPassword() =>
+        new(HttpStatusCode.Unauthorized, ErrorEnvelope.IncorrectUsernameOrPassword());
 }
