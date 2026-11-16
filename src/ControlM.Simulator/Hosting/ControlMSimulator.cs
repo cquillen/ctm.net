@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using ControlM.Client;
 using ControlM.Simulator.Operations;
 using ControlM.Simulator.Operations.UnknownOperation;
@@ -15,6 +16,7 @@ namespace ControlM.Simulator.Hosting;
 public sealed class ControlMSimulator : IAsyncDisposable
 {
     private readonly WebApplication _app;
+    private readonly ConcurrentBag<ServiceProvider> _clientProviders = [];
 
     private ControlMSimulator(WebApplication app) => _app = app;
 
@@ -56,9 +58,19 @@ public sealed class ControlMSimulator : IAsyncDisposable
         services
             .AddControlMClient(o => o.Endpoint = new Uri(server.BaseAddress, ApiPath.Base))
             .ConfigurePrimaryHttpMessageHandler(server.CreateHandler);
-        return services.BuildServiceProvider().GetRequiredService<IControlMClient>();
+        var provider = services.BuildServiceProvider();
+        _clientProviders.Add(provider);
+        return provider.GetRequiredService<IControlMClient>();
     }
 
     /// <inheritdoc />
-    public ValueTask DisposeAsync() => _app.DisposeAsync();
+    public async ValueTask DisposeAsync()
+    {
+        foreach (var provider in _clientProviders)
+        {
+            await provider.DisposeAsync();
+        }
+
+        await _app.DisposeAsync();
+    }
 }
