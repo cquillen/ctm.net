@@ -2,7 +2,7 @@
 
 This repository implements two things in .NET 10:
 
-- **A typed client** for the BMC Control-M Automation API (target version 9.22.60).
+- **A typed client** for the BMC Control-M Automation API (target version 9.0.22.060; BMC publishes no documentation edition by that number, so the baseline is its 9.0.22.000 edition).
 - **A stateful simulator** of that API, so an application that drives Control-M can be developed, tested and demonstrated without a real Control-M server.
 
 The consuming application is an external orchestrator. For each run period it generates job definitions, deploys them, then orders and tracks individual jobs per tenant. The orchestrator decides what runs next; Control-M only executes jobs and reports status. Nothing here references or assumes anything about that application.
@@ -83,7 +83,7 @@ An area may use the areas before it in these lists, never one after it:
 - **Simulator:** `Operations`, `Errors`, `Journal`, `Faults`, `Authentication`, `Topology`, `VirtualFiles`, `JobTypes`, `Deployment`, `Jobs`, `Orders`, `Scenarios`, `Hosting`.
 - **SpecCheck:** `SpecReading`, `Reporting`, then the comparison areas, which do not use each other.
 
-Shared identifiers belong to the earliest area whose concept they are: `ServerName` to `Topology`; `JobRef` and `DefinitionDocument` to `Deployment`; `JobId`, `JobStatus` and `JobRun` to `Jobs`; `RunId` to `Orders`.
+Shared identifiers belong to the earliest area whose concept they are: `ServerName` to `Topology`; `JobRef` and `DefinitionDocument` to `Deployment`; `JobId`, `JobStatus` and `JobSnapshot` to `Jobs`; `RunId` to `Orders`.
 
 Contract types, client methods and simulator behavior exist only for the operations below. Full API coverage is not a goal.
 
@@ -123,6 +123,7 @@ The interface adds the typing the API lacks:
 
 - **Identifiers.** Value types `ServerName`, `RunId` and `JobId` (`server:orderId`, with `Parse`). `JobRef` (server, folder, optional sub-folder, job name) addresses a job in the deployed definitions; the client turns it into the order call.
 - **Status.** A `JobStatus` enum (`WaitCondition`, `WaitResource`, `WaitHost`, `WaitUser`, `WaitWorkload`, `Executing`, `EndedOk`, `EndedNotOk`, `StatusUnknown`, `Unrecognized`) plus the server's exact text in `RawStatus`. `StatusUnknown` is Control-M's own "Status Unknown". Text the client does not know maps to `Unrecognized` and never throws.
+- **Agent status.** An enum of the server's four values (`Available`, `Unavailable`, `Disabled`, `Discovering`) plus `Unrecognized`, with the exact text kept beside it, as for job status.
 - **Dates.** Start and end times are `DateTimeOffset`. The order date stays the server's string.
 - **Job definitions.** An opaque JSON document (`DefinitionDocument`). The application owns the content.
 - **Ordering.** `OrderOptions.IgnoreCriteria` defaults to `true`, because jobs run on demand and have no schedule.
@@ -130,9 +131,9 @@ The interface adds the typing the API lacks:
 
 Behavior:
 
-- `QueryJobsAsync` hides paging behind `IAsyncEnumerable<JobRun>`. A 206 from `GET /run/jobs/status` is a partial result and is surfaced to the caller.
+- `QueryJobsAsync` hides paging behind `IAsyncEnumerable<JobSnapshot>`. A `JobSnapshot` is a job instance's state at the time of the call. A 206 from `GET /run/jobs/status` is a partial result and is surfaced to the caller.
 - `BuildAsync` and `DeployAsync` build the multipart upload from an in-memory definition. `DeployAsync` follows a `pollId` through `GET /deploy/poll` to completion.
-- The server parameter is always sent as `server`, never `ctm`.
+- The server parameter is always sent as `server`, never `ctm`. A response that names it `ctm` is read.
 - A low-level `SendAsync<T>(method, path, body?)` calls any operation the typed interface does not cover, through the same authentication, retry, error mapping and capture pipeline.
 
 ### 3.3 Errors
@@ -166,7 +167,7 @@ The simulator reproduces the HTTP surface and observable behavior of the support
 ### 4.2 Authentication
 
 - Session login issues a token, sent as `Authorization: Bearer`. API keys are seeded and sent as `x-api-key`.
-- Session lifetime is configurable (default: 30 minutes idle). A token can be expired or revoked on demand.
+- Session lifetime is configurable (default: 30 minutes from login, whatever the activity). A token can be expired or revoked on demand.
 - An invalid or expired credential returns 401 with an `ErrorList`.
 
 ### 4.3 Domain model
@@ -179,9 +180,9 @@ The simulator reproduces the HTTP surface and observable behavior of the support
 ### 4.4 Build and deploy
 
 - The definition JSON is parsed for folders, sub-folders and the four supported job types. Anything else is rejected with a build-style error naming the unsupported element; nothing is accepted and ignored.
-- A job whose host is not a known agent or host group is rejected.
+- A job whose host is blank, or is not a known agent or host group, is rejected.
 - `POST /build` validates and changes nothing. `POST /deploy` validates, then replaces the named folders.
-- A deploy can be scripted to complete asynchronously, returning a `pollId` that `GET /deploy/poll` resolves.
+- A deploy can be scripted to be an asynchronous deployment, returning a `pollId` that `GET /deploy/poll` resolves.
 - `GET /deploy/jobs` returns what was deployed, in the real server's format.
 
 ### 4.5 Ordering and job lifecycle
@@ -190,7 +191,7 @@ The simulator reproduces the HTTP surface and observable behavior of the support
 - A whole-folder order starts every job. There is no dependency evaluation.
 - Ordering something that was never deployed fails as the real server does.
 - Each job instance moves through the real status values (for example Wait Host, Executing, Ended OK, Ended Not OK).
-- A job whose agent is unavailable waits and does not run.
+- A job whose agent is in any status other than available waits and does not run.
 - Job actions apply the correct transitions and reject invalid ones:
   - `rerun` increments the run count on the same instance.
   - `hold` prevents start; `free` releases it.
@@ -215,7 +216,7 @@ An unscripted job succeeds after a default duration. Default durations, output a
 
 - All timing reads from an injected `TimeProvider`. The simulator defines no clock abstraction of its own.
 - In tests, nothing progresses until the test advances a `FakeTimeProvider`. The standalone host uses the system provider, with a scaled provider when a speed multiplier is set.
-- The daily New Day cleanup, which removes finished jobs from the active environment, is simulated and can be triggered on demand.
+- The daily New Day cleanup, which removes job instances that ended OK from the active environment and leaves the rest, is simulated and can be triggered on demand.
 
 ### 4.8 Assumed Control-M behavior
 
@@ -225,7 +226,7 @@ When the public documentation and the Python client do not settle a detail, choo
 
 | Item | Working assumption |
 | --- | --- |
-| Addressing a sub-folder job when ordering | The `jobs` filter takes the job name; the sub-folder is identified by path in the folder or jobs value |
+| Addressing a sub-folder job when ordering | The `jobs` filter takes the job name; the sub-folder is identified by path in the folder or jobs value. Deploy queries separate folder and sub-folder with a colon (`FOLDER1:TENANT17`); status names use a slash |
 | What a single-job order creates | A new instance of the parent folder containing only that job, governed by `orderIntoFolder` and `createDuplicate` |
 | Jobs with no schedule | Can be ordered on demand; `ignoreCriteria` may be required |
 | `runId` for a single-job order | Tracks just the ordered job through `GET /run/status/{runId}` |
@@ -236,6 +237,11 @@ When the public documentation and the Python client do not settle a detail, choo
 | Which jobs wait for confirmation | A job whose definition sets `Confirm` to true waits in Wait User until `confirm` |
 | What `runNow` bypasses | Agent availability and confirmation, but not a hold |
 | Shape of `waitingInfo` | A list of reason strings |
+| `server` in the order body | Accepted in place of `ctm`, which the documented example still sends |
+| Path of the delete-folder operation | `DELETE /deploy/folder/{server}/{folderName}`, as in the Python client. The documentation's example shows `DELETE /deploy/folder/{folder}?server={server}` |
+| Session lifetime | A token expires 30 minutes after login; activity does not extend it |
+| Order ID across reruns | A rerun keeps the job instance's order ID |
+| Agents and servers | An agent belongs to the server it was added to; the same name on two servers is two agents |
 
 ## 5. Simulator control
 
@@ -260,7 +266,9 @@ One set of control capabilities, exposed three ways over a single implementation
 
 The test API is named for what a test controls, so its property names need not match the area that implements them. The "Owning area" column says where each lives.
 
-A job pattern is a glob over `folder/subfolder/job`. The most specific matching rule wins.
+A job pattern is a glob over `folder/subfolder/job`. The most specific matching rule wins. A count in a rule, such as failing N times, is kept per job instance: every instance the rule matches fails its first N runs.
+
+The journal holds every request to the Control-M API surface, including one answered by a stub, a fault or a 501. Control API calls, typed controls and operator actions are not journaled.
 
 ### 5.2 In-process use
 
@@ -337,7 +345,7 @@ dotnet run --project src/ControlM.Simulator.Tool -- spec-check --spec <file> [--
 - A conformance test that arranges state through the simulator's test API is marked simulator-only and is skipped against a real server. The rest use only the client interface.
 - Every implemented operation has a test comparing its response with a fixture or a documented example.
 - The whole test suite runs in parallel and completes in under one minute.
-- Scale target: an in-process test can deploy generated definitions, order individual jobs for at least 100 tenants across several agents, fail a chosen job once, observe the rerun, and assert on the request journal, with no wall-clock waits.
+- Scale target: an in-process test can deploy generated definitions, order individual jobs in at least 100 sub-folders across several agents, fail a chosen job once, observe the rerun, and assert on the request journal, with no wall-clock waits.
 
 ## 8. Out of scope
 
@@ -345,6 +353,7 @@ dotnet run --project src/ControlM.Simulator.Tool -- spec-check --spec <file> [--
 - Scheduling, calendars and order-date logic beyond recording the order date.
 - Dependencies between jobs: events, conditions, flows and resources.
 - Other job types, including file transfer, database and cloud types.
+- Agentless hosts, and jobs with a blank host that run on the server itself. A host group contains agents only.
 - Full validation of job definitions against Control-M's rules.
 - All other API operations, including `/config` administration, provisioning, reporting, archive, workload policies and API token management.
 - Persistence across restarts.
