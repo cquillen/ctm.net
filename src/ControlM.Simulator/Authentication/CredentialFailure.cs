@@ -18,4 +18,7 @@ internal sealed record CredentialFailure(HttpStatusCode StatusCode, ErrorList Bo
 
     public static CredentialFailure IncorrectUsernameOrPassword() =>
         new(HttpStatusCode.Unauthorized, ErrorEnvelope.IncorrectUsernameOrPassword());
+
+    // A real server answered 500 for a known user's wrong password, seen for one user only (requirements section 4.2).
+    public static CredentialFailure WrongPassword() => new(HttpStatusCode.InternalServerError, ErrorEnvelope.LoginFailed());
 }
