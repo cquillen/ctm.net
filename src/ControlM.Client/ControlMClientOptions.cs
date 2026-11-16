@@ -1,5 +1,5 @@
-using ControlM.Client.Authentication;
 using ControlM.Client.Authentication.ApiKey;
+using ControlM.Client.Authentication.Login;
 
 namespace ControlM.Client;
 
@@ -14,14 +14,16 @@ public sealed class ControlMClientOptions
     /// </summary>
     public Uri? Endpoint { get; set; }
 
-    internal ICredentialScheme? CredentialScheme { get; private set; }
+    internal ApiKeyScheme? ApiKey { get; private set; }
+
+    internal LoginCredentials? SessionLogin { get; private set; }
 
     /// <summary>
     /// Authenticates every request with an API key, which BMC calls an API token, sent in the <c>x-api-key</c>
     /// header. A key that is <see langword="null"/>, empty or whitespace fails when the client is first resolved.
     /// </summary>
     /// <param name="key">The API key.</param>
-    public void UseApiKey(string key) => CredentialScheme = new ApiKeyScheme(key);
+    public void UseApiKey(string key) => ApiKey = new ApiKeyScheme(key);
 
     /// <summary>
     /// Authenticates with session login: the client logs in with the user name and password on its first request, and
@@ -31,5 +33,5 @@ public sealed class ControlMClientOptions
     /// </summary>
     /// <param name="username">The Control-M user name.</param>
     /// <param name="password">The user's password.</param>
-    public void UseSessionLogin(string username, string password) => throw new NotImplementedException();
+    public void UseSessionLogin(string username, string password) => SessionLogin = new LoginCredentials(username, password);
 }

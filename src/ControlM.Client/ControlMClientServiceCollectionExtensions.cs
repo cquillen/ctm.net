@@ -1,5 +1,4 @@
 using ControlM.Client.Authentication;
-using ControlM.Client.Authentication.ApiKey;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -33,15 +32,21 @@ public static class ControlMClientServiceCollectionExtensions
                 o => o.Endpoint is not null,
                 $"{nameof(ControlMClientOptions)}.{nameof(ControlMClientOptions.Endpoint)} is required.")
             .Validate(
-                o => o.CredentialScheme is not null,
-                $"An authentication scheme is required: call {nameof(ControlMClientOptions)}.{nameof(ControlMClientOptions.UseApiKey)}.")
+                o => o.ApiKey is not null || o.SessionLogin is not null,
+                $"An authentication scheme is required: call {nameof(ControlMClientOptions)}.{nameof(ControlMClientOptions.UseApiKey)} or {nameof(ControlMClientOptions)}.{nameof(ControlMClientOptions.UseSessionLogin)}.")
             .Validate(
-                o => o.CredentialScheme is not ApiKeyScheme { IsBlank: true },
-                $"The key given to {nameof(ControlMClientOptions)}.{nameof(ControlMClientOptions.UseApiKey)} must not be empty or whitespace.");
+                o => o.ApiKey is null || o.SessionLogin is null,
+                $"Choose one authentication scheme: call {nameof(ControlMClientOptions)}.{nameof(ControlMClientOptions.UseApiKey)} or {nameof(ControlMClientOptions)}.{nameof(ControlMClientOptions.UseSessionLogin)}, not both.")
+            .Validate(
+                o => o.ApiKey is not { IsBlank: true },
+                $"The key given to {nameof(ControlMClientOptions)}.{nameof(ControlMClientOptions.UseApiKey)} must not be empty or whitespace.")
+            .Validate(
+                o => o.SessionLogin is not { } login || !(string.IsNullOrWhiteSpace(login.Username) || string.IsNullOrWhiteSpace(login.Password)),
+                $"The user name and password given to {nameof(ControlMClientOptions)}.{nameof(ControlMClientOptions.UseSessionLogin)} must not be empty or whitespace.");
 
         // A singleton, for the reason in docs/requirements.md section 3.4.
         services.TryAddSingleton<ICredentialScheme>(
-            provider => provider.GetRequiredService<IOptions<ControlMClientOptions>>().Value.CredentialScheme!);
+            provider => provider.GetRequiredService<IOptions<ControlMClientOptions>>().Value.ApiKey!);
         return ControlMPipeline.Compose(services.AddHttpClient<IControlMClient, ControlMClient>());
     }
 }
