@@ -25,6 +25,9 @@ public sealed class ControlMSimulator : IAsyncDisposable
         Action<ControlMSimulatorOptions>? configure = null,
         CancellationToken cancellationToken = default)
     {
+        var options = new ControlMSimulatorOptions();
+        configure?.Invoke(options);
+
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseTestServer();
         var app = builder.Build();
