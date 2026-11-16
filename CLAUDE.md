@@ -29,7 +29,6 @@ The rules for writing code here are in `docs/conventions.md`, imported in full b
 ## Not yet in place
 
 - **Zero-tests setting.** The test projects start empty, so each test project file passes `--ignore-exit-code 8` to tolerate a run that finds no tests. Remove the line from a project in the change that adds that project's first test.
-- **ASP.NET Core boundary test.** The conventions name a reflection test that keeps ASP.NET Core at the edge of the simulator. Write it in the change that adds the first simulator endpoint, and prove it can fail as the conventions describe for structural tests.
 
 ## Slices
 
