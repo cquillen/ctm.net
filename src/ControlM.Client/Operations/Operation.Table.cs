@@ -7,5 +7,5 @@ public sealed partial record Operation
     /// <summary>
     /// <c>GET /config/servers</c>: the servers the Automation API knows.
     /// </summary>
-    public static Operation GetServers => throw new NotImplementedException();
+    public static Operation GetServers { get; } = new(nameof(GetServers), HttpMethod.Get, "/config/servers");
 }
