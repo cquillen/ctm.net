@@ -32,7 +32,7 @@ public sealed class ControlMSimulator : IAsyncDisposable
     }
 
     /// <summary>
-    /// The credentials this instance accepts: API keys and users. Seed a key here to send it over a raw
+    /// The credentials this instance accepts: API keys, users and their sessions. Seed a key here to send it over a raw
     /// <see cref="HttpClient"/>, or a user for a client created with <c>o =&gt; o.UseSessionLogin(...)</c>.
     /// </summary>
     public CredentialStore Credentials { get; }
@@ -53,7 +53,7 @@ public sealed class ControlMSimulator : IAsyncDisposable
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseTestServer();
         var app = builder.Build();
-        var credentials = new CredentialStore();
+        var credentials = new CredentialStore(options.TimeProvider, options.SessionLifetime);
         MapSessionOperations(app.MapGroup(ApiPath.Base), credentials);
         MapOperations(app.MapGroup(ApiPath.Base).AddEndpointFilter(new CredentialFilter(credentials)));
         UnknownOperationEndpoint.Map(app).AddEndpointFilter(new WrongMethodFilter(app.Services.GetRequiredService<EndpointDataSource>()));

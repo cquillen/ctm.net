@@ -11,8 +11,16 @@ public sealed class CredentialStore
 {
     private readonly ConcurrentDictionary<string, bool> _apiKeys = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, string> _users = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, bool> _sessions = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, Session> _sessions = new(StringComparer.Ordinal);
     private readonly SessionTokenSequence _tokens = new();
+    private readonly TimeProvider _time;
+    private readonly TimeSpan _sessionLifetime;
+
+    internal CredentialStore(TimeProvider time, TimeSpan sessionLifetime)
+    {
+        _time = time;
+        _sessionLifetime = sessionLifetime;
+    }
 
     /// <summary>
     /// Seeds an API key, so a request that sends it in <c>x-api-key</c> is accepted, unless the request also carries an
@@ -28,6 +36,17 @@ public sealed class CredentialStore
     /// <param name="password">The user's password.</param>
     public void AddUser(string username, string password) => _users[username] = password;
 
+    /// <summary>
+    /// Ends every live session, as if each had gone unused for its whole lifetime. Each token is refused from then on.
+    /// </summary>
+    public void ExpireSessions() => _sessions.Clear();
+
+    /// <summary>
+    /// Ends the session of one token and leaves the others live. A token that is not live is ignored.
+    /// </summary>
+    /// <param name="token">The token login returned, such as <c>SIMTOKEN1</c>.</param>
+    public void ExpireSession(string token) => _sessions.TryRemove(token, out _);
+
     internal LoginOutcome Login(string? username, string? password)
     {
         if (username is null || password is null || !_users.TryGetValue(username, out var seededPassword))
@@ -41,7 +60,7 @@ public sealed class CredentialStore
         }
 
         var token = _tokens.Next();
-        _sessions[token] = true;
+        _sessions[token] = new Session(_time.GetUtcNow());
         return LoginOutcome.Succeeded(token);
     }
 
@@ -81,7 +100,7 @@ public sealed class CredentialStore
 
         if (authorization is not null)
         {
-            return IsLiveSession(authorization) ? null : CredentialFailure.InvalidOrExpiredToken();
+            return TryUseSession(authorization) ? null : CredentialFailure.InvalidOrExpiredToken();
         }
 
         return _apiKeys.ContainsKey(apiKey!) ? null : CredentialFailure.UnknownApiKey();
@@ -101,8 +120,10 @@ public sealed class CredentialStore
         return hasApiKey && hasAuthorization ? CredentialFailure.BothCredentialHeaders() : null;
     }
 
-    private bool IsLiveSession(string authorization) =>
-        BearerToken(authorization) is { } token && _sessions.ContainsKey(token);
+    private bool TryUseSession(string authorization) =>
+        BearerToken(authorization) is { } token
+        && _sessions.TryGetValue(token, out var session)
+        && session.TryUse(_time.GetUtcNow(), _sessionLifetime);
 
     private static string? BearerToken(string authorization) =>
         AuthenticationHeaderValue.TryParse(authorization, out var header)
