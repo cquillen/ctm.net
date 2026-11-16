@@ -11,9 +11,10 @@ internal sealed class JournalRecording(RequestJournal journal, TimeProvider time
     public async Task InvokeAsync(HttpContext context, RequestDelegate next)
     {
         var request = context.Request;
+        var slot = journal.Admit();
         var arrival = time.GetUtcNow();
         await next(context);
-        journal.Record(new JournalEntry(
+        journal.Record(slot, new JournalEntry(
             context.GetEndpoint()?.Metadata.GetMetadata<Operation>(),
             request.Method,
             request.Path.Value ?? string.Empty,
