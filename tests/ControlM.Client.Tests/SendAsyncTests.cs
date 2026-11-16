@@ -1,6 +1,6 @@
 using System.Net;
 using System.Text.Json;
-using System.Text.Json.Nodes;
+using ControlM.Fixtures;
 using Shouldly;
 
 namespace ControlM.Client.Tests;
@@ -46,9 +46,7 @@ public sealed class SendAsyncTests
             "/sample/path",
             new SampleRequest("FOLDER1", 3, Description: null));
 
-        var sent = JsonNode.Parse(stub.Requests.ShouldHaveSingleItem().Body.ShouldNotBeNull());
-        JsonNode.DeepEquals(sent, JsonNode.Parse("""{"folderName":"FOLDER1","retryCount":3}"""))
-            .ShouldBeTrue($"sent {sent?.ToJsonString()}");
+        stub.Requests.ShouldHaveSingleItem().Body.ShouldEqualJson("""{"folderName":"FOLDER1","retryCount":3}""");
     }
 
     [Test]
