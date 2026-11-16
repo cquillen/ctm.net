@@ -306,6 +306,7 @@ When the public documentation and the Python client do not settle a detail, choo
 | A login body that is not a JSON object | 400, with one error entry, `Failed to login: Invalid request body`. A JSON array counts as not an object; the JSON literal `null` counts as a body without `username` or `password`. The `Content-Type` of a login body is not checked |
 | The user name in a login response | Echoed exactly as sent |
 | `POST /session/logout` with only an API key | 200, with the key in the message where a token would be; nothing ends |
+| `POST /session/logout` with an `Authorization` header that is not a bearer token | 200, with the whole header value in the message where a token would be; nothing ends |
 | A request with no credential and an invalid body | 401, not 400: the credential is checked before the body |
 
 ## 5. Simulator control
