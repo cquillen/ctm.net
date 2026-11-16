@@ -11,7 +11,7 @@ internal static class GetServersEndpoint
     private static Operation Operation => Operation.GetServers;
 
     public static void Map(IEndpointRouteBuilder routes) =>
-        routes.MapMethods(Operation.Path, [Operation.Method.Method], Answer);
+        routes.MapMethods(Operation.Path, [Operation.Method.Method], Answer).WithMetadata(Operation);
 
     private static IResult Answer() => Results.Json(Array.Empty<object>(), SimulatorJson.Options);
 }
