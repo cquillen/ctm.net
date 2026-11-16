@@ -17,7 +17,9 @@ internal sealed class SessionLoginScheme(
 {
     public const string AuthenticationScheme = "Bearer";
 
-    private string? _token;
+    private readonly SemaphoreSlim _login = new(1, 1);
+
+    private volatile string? _token;
 
     public async ValueTask ApplyAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
@@ -27,17 +29,13 @@ internal sealed class SessionLoginScheme(
 
     public async ValueTask<bool> TryRecoverAsync(HttpRequestMessage refused, CancellationToken cancellationToken)
     {
-        if (refused.Headers.Authorization?.Parameter != _token)
-        {
-            return true;
-        }
-
-        _token = await LoginAsync(cancellationToken);
+        await ReplaceTokenAsync(refused.Headers.Authorization?.Parameter, cancellationToken);
         return true;
     }
 
     public async ValueTask DisposeAsync()
     {
+        _login.Dispose();
         if (_token is null)
         {
             return;
@@ -50,6 +48,25 @@ internal sealed class SessionLoginScheme(
         catch (Exception)
         {
             // Disposal never throws (docs/requirements.md section 3.4): a session the server keeps is its to expire.
+        }
+    }
+
+    // Callers that wait here while another logs in find the token replaced, and so share that login.
+    private async Task<string> ReplaceTokenAsync(string? refusedToken, CancellationToken cancellationToken)
+    {
+        await _login.WaitAsync(cancellationToken);
+        try
+        {
+            if (_token is { } current && current != refusedToken)
+            {
+                return current;
+            }
+
+            return _token = await LoginAsync(cancellationToken);
+        }
+        finally
+        {
+            _login.Release();
         }
     }
 
