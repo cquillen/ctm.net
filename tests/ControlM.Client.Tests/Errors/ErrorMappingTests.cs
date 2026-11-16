@@ -23,10 +23,13 @@ public sealed class ErrorMappingTests
         exception.Errors.ShouldHaveSingleItem().ShouldBe(new ControlMError("Not Found", Code: "404", Uri: "/no/such/path"));
     }
 
-    // The unknown API key fixture is assumed (requirements section 4.8); the other two were observed.
+    // The unknown API key fixture is assumed (requirements section 4.8); the others were observed.
     [Test]
     [Arguments("GetServers.no-credential.json", "Unauthenticated request: No authentication header was provided")]
     [Arguments("GetServers.invalid-bearer-token.json", "User not found. Session token is invalid or expired.")]
+    [Arguments(
+        "GetServers.both-headers.json",
+        "Unauthenticated request: Request cannot contain both x-api-key and authorization headers")]
     [Arguments("GetServers.unknown-api-key.json", "Invalid API token.")]
     public async Task A_401_throws_the_authentication_exception_with_its_entry(string fixture, string message)
     {
