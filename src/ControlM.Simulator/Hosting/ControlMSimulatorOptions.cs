@@ -10,4 +10,10 @@ public sealed class ControlMSimulatorOptions
     /// controls time passes a fake one.
     /// </summary>
     public TimeProvider TimeProvider { get; set; } = TimeProvider.System;
+
+    /// <summary>
+    /// How long a session may go unused before its token is refused. Every request authenticated with the token
+    /// restarts this time. Defaults to 30 minutes, as BMC documents.
+    /// </summary>
+    public TimeSpan SessionLifetime { get; set; }
 }

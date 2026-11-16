@@ -17,6 +17,16 @@ public sealed class ControlMSimulatorTests
     }
 
     [Test]
+    public async Task The_options_callback_sees_a_session_lifetime_of_30_minutes_by_default()
+    {
+        TimeSpan? seen = null;
+
+        await using var simulator = await ControlMSimulator.StartAsync(o => seen = o.SessionLifetime);
+
+        seen.ShouldBe(TimeSpan.FromMinutes(30));
+    }
+
+    [Test]
     public async Task An_instance_keeps_answering_after_another_started_beside_it_is_disposed()
     {
         await using var survivor = await ControlMSimulator.StartAsync();
