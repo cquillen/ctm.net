@@ -1,4 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- This project has no tests yet, and a run that finds none exits with code 8.
+         Remove this property in the change that adds the project's first test. -->
+    <TestingPlatformCommandLineArguments>$(TestingPlatformCommandLineArguments) --ignore-exit-code 8</TestingPlatformCommandLineArguments>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\ControlM.Client\ControlM.Client.csproj" />
     <ProjectReference Include="..\..\src\ControlM.Simulator\ControlM.Simulator.csproj" />
