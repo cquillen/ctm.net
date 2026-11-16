@@ -15,5 +15,20 @@ public sealed class CredentialStore
     /// <param name="key">The key, as a request sends it.</param>
     public void AddApiKey(string key) => _apiKeys[key] = true;
 
-    internal bool HasApiKey(string key) => _apiKeys.ContainsKey(key);
+    // The simulator issues no bearer token, so an Authorization header without a seeded key fails (requirements
+    // section 4.8).
+    internal CredentialOutcome Check(string? apiKey, bool hasAuthorizationHeader)
+    {
+        if (!string.IsNullOrEmpty(apiKey) && _apiKeys.ContainsKey(apiKey))
+        {
+            return CredentialOutcome.Accepted;
+        }
+
+        if (hasAuthorizationHeader)
+        {
+            return CredentialOutcome.InvalidOrExpiredToken;
+        }
+
+        return string.IsNullOrEmpty(apiKey) ? CredentialOutcome.NoCredential : CredentialOutcome.UnknownApiKey;
+    }
 }
