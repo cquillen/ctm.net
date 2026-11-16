@@ -7,13 +7,13 @@ using ControlM.Client.Serialization;
 
 namespace ControlM.Client.Authentication.SessionLogin;
 
-// Login goes through the client's own named HttpClient, so it reaches the primary handler the consumer configured;
-// the request option keeps the authentication handler from applying a credential to it.
+// Login and logout go through the client's own named HttpClient, so they reach the primary handler the consumer
+// configured; the request option keeps the authentication handler from applying a credential to them.
 internal sealed class SessionLoginScheme(
     LoginCredentials credentials,
     Uri endpoint,
     IHttpClientFactory httpClientFactory,
-    string httpClientName) : ICredentialScheme
+    string httpClientName) : ICredentialScheme, IAsyncDisposable
 {
     public const string AuthenticationScheme = "Bearer";
 
@@ -36,14 +36,36 @@ internal sealed class SessionLoginScheme(
         return true;
     }
 
+    public async ValueTask DisposeAsync()
+    {
+        if (_token is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await LogoutAsync(_token);
+        }
+        catch (Exception)
+        {
+            // Disposal never throws (docs/requirements.md section 3.4): a session the server keeps is its to expire.
+        }
+    }
+
+    private async Task LogoutAsync(string token)
+    {
+        using var request = SessionRequest(Operation.Logout);
+        request.Headers.Authorization = new AuthenticationHeaderValue(AuthenticationScheme, token);
+        using var http = httpClientFactory.CreateClient(httpClientName);
+        using var response = await http.SendAsync(request, CancellationToken.None);
+    }
+
     private async Task<string> LoginAsync(CancellationToken cancellationToken)
     {
         var login = Operation.Login;
-        using var request = new HttpRequestMessage(login.Method, RequestUri.Of(endpoint, login.Path))
-        {
-            Content = JsonContent.Create(credentials, options: ControlMJson.Options),
-        };
-        request.Options.Set(AuthenticationHandler.Unauthenticated, true);
+        using var request = SessionRequest(login);
+        request.Content = JsonContent.Create(credentials, options: ControlMJson.Options);
         using var http = httpClientFactory.CreateClient(httpClientName);
         using var response = await http.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
@@ -53,5 +75,12 @@ internal sealed class SessionLoginScheme(
 
         var result = await response.Content.ReadFromJsonAsync<LoginResult>(ControlMJson.Options, cancellationToken);
         return result!.Token;
+    }
+
+    private HttpRequestMessage SessionRequest(Operation operation)
+    {
+        var request = new HttpRequestMessage(operation.Method, RequestUri.Of(endpoint, operation.Path));
+        request.Options.Set(AuthenticationHandler.Unauthenticated, true);
+        return request;
     }
 }
