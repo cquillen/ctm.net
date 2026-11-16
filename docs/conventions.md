@@ -21,6 +21,12 @@ Code explains itself through names and small methods. A comment must earn its pl
 - **Inline comments** are only for what would surprise a reader: why a non-obvious approach was taken, a Control-M or dependency quirk, where a contract type came from, or why a warning is suppressed.
 - **Never** describe what the code does, restate a requirement recorded elsewhere (link to the document or ADR instead), narrate history, label sections of a method, or leave `TODO`-style notes.
 
+## Control flow
+
+- **Guard clauses first.** A method validates its arguments and state at the top and exits immediately on failure, by returning or throwing. The happy path is the unindented code at the bottom, never inside an `else`.
+- **Return early.** Return as soon as the result is known. Do not hold a result in a variable to reach a single return at the end.
+- **Keep nesting shallow.** More than two levels of nesting inside a method is a signal to restructure: invert the condition and exit, `continue` past the uninteresting case in a loop, or extract the inner block into a named method.
+
 ## Design
 
 Follow DRY and SOLID, and make every abstraction earn its place.
