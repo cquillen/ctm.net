@@ -12,8 +12,7 @@ internal sealed class CredentialFilter(CredentialStore credentials) : IEndpointF
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         var headers = context.HttpContext.Request.Headers;
-        var outcome = CredentialCheck.Check(
-            credentials,
+        var outcome = credentials.Check(
             headers[ApiKeyScheme.HeaderName].FirstOrDefault(),
             headers.Authorization.Count > 0);
         if (outcome != CredentialOutcome.Accepted)
