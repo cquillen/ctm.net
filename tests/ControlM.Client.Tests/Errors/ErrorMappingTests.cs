@@ -85,4 +85,19 @@ public sealed class ErrorMappingTests
         exception.Path.ShouldBe("/sample/path?name=FOLDER1");
         exception.Operation.ShouldBeNull();
     }
+
+    [Test]
+    public async Task The_exception_message_includes_the_status_code_and_the_first_error_message()
+    {
+        var stub = StubHandler.Returning(
+            HttpStatusCode.Conflict,
+            """{"errors":[{"message":"Folder FOLDER1 is locked"},{"message":"Second error"}]}""");
+        var client = TestClient.Create(stub);
+
+        var exception = await Should.ThrowAsync<ControlMApiException>(
+            () => client.SendAsync(HttpMethod.Post, "/sample/path"));
+
+        exception.Message.ShouldContain("409");
+        exception.Message.ShouldContain("Folder FOLDER1 is locked");
+    }
 }
