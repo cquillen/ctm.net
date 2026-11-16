@@ -108,7 +108,7 @@ Head every comment with its bold title, then `(session <link>)`.
 
 **Round**: `**Grilling record, round <k>**`
 
-- `### Observed on a real server`, if anything was probed: the reported API version, each request, and its literal response. List what was not probed.
+- `### Observed on a real server`, if anything was probed: the API version from requirements section 7, each request, and its literal response. List what was not probed.
 - `### Decisions`, numbered from where the last comment stopped. Each decision is a bold title and then the decision itself.
 - `### Assumed, not observed`, if any decision rests on an assumption.
 
