@@ -21,4 +21,7 @@ internal sealed record CredentialFailure(HttpStatusCode StatusCode, ErrorList Bo
 
     // A real server answered 500 for a known user's wrong password, seen for one user only (requirements section 4.2).
     public static CredentialFailure WrongPassword() => new(HttpStatusCode.InternalServerError, ErrorEnvelope.LoginFailed());
+
+    // Assumed (requirements section 4.8): no real server has been sent a login body that is not a JSON object.
+    public static CredentialFailure InvalidLoginBody() => new(HttpStatusCode.BadRequest, ErrorEnvelope.InvalidLoginBody());
 }

@@ -22,5 +22,7 @@ internal static class ErrorEnvelope
 
     public static ErrorList LoginFailed() => MessageOnly("Failed to login: Login failed.");
 
+    public static ErrorList InvalidLoginBody() => MessageOnly("Failed to login: Invalid request body");
+
     private static ErrorList MessageOnly(string message) => new([new ControlMError(message)]);
 }
