@@ -11,6 +11,8 @@ public sealed class SessionLoginTests
 {
     private const string _loginPath = "/automation-api/session/login";
 
+    private const string _serversPath = "/automation-api/config/servers";
+
     [Test]
     public void Resolving_the_client_sends_nothing()
     {
@@ -88,7 +90,27 @@ public sealed class SessionLoginTests
         stub.Requests.ShouldHaveSingleItem().Uri.AbsolutePath.ShouldBe(_loginPath);
     }
 
+    [Test]
+    public async Task A_call_answered_401_logs_in_again_once_and_resends_with_the_new_token()
+    {
+        var stub = StubHandler.Returning(HttpStatusCode.OK, "[]")
+            .AnsweringInTurn(_loginPath, (HttpStatusCode.OK, LoginSuccess), (HttpStatusCode.OK, SecondLoginSuccess))
+            .AnsweringInTurn(_serversPath, (HttpStatusCode.Unauthorized, InvalidToken), (HttpStatusCode.OK, """["SERVER1"]"""));
+        var client = TestClient.CreateWithSessionLogin(stub);
+
+        var servers = await client.SendAsync<JsonElement>(HttpMethod.Get, "/config/servers");
+
+        servers.GetRawText().ShouldEqualJson("""["SERVER1"]""");
+        stub.Requests.Select(r => r.Uri.AbsolutePath).ShouldBe([_loginPath, _serversPath, _loginPath, _serversPath]);
+        stub.Requests[1].Headers.GetValueOrDefault("Authorization").ShouldBe(["Bearer SIMTOKEN1"]);
+        stub.Requests[3].Headers.GetValueOrDefault("Authorization").ShouldBe(["Bearer SIMTOKEN2"]);
+    }
+
     private static string LoginSuccess => LoginFixture("Login.success.json");
+
+    private static string SecondLoginSuccess => LoginSuccess.Replace("SIMTOKEN1", "SIMTOKEN2", StringComparison.Ordinal);
+
+    private static string InvalidToken => JsonFixture.Load("Authentication", "ApiKey", "GetServers.invalid-bearer-token.json");
 
     private static string LoginFixture(string fileName) => JsonFixture.Load("Authentication", "Login", fileName);
 }
