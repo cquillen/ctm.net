@@ -256,6 +256,7 @@ When the public documentation and the Python client do not settle a detail, choo
 | Agents and servers | An agent belongs to the server it was added to; the same name on two servers is two agents |
 | Unknown path with a method other than `GET` | The same 404 as the `GET` that was observed |
 | Unknown path outside `/automation-api` | The same 404, with the whole path in `uri` |
+| The bare path `/automation-api`, with nothing after it | Outside the prefix: the same 404, with `/automation-api` in `uri` |
 
 ## 5. Simulator control
 
