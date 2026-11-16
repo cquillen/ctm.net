@@ -47,4 +47,19 @@ public sealed class RefusedAndUnmatchedTests
         entry.Path.ShouldBe("/config/servers");
         entry.Status.ShouldBe(404);
     }
+
+    [Test]
+    public async Task A_wrong_method_on_a_real_path_is_unmatched()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        using var http = simulator.CreateHttpClient();
+        using var request = new HttpRequestMessage(HttpMethod.Patch, new Uri("/automation-api/config/servers", UriKind.Relative));
+
+        using var response = await http.SendAsync(request);
+
+        var entry = simulator.Journal.Unmatched.ShouldHaveSingleItem();
+        entry.Operation.ShouldBeNull();
+        entry.Method.ShouldBe("PATCH");
+        entry.Status.ShouldBe(405);
+    }
 }
