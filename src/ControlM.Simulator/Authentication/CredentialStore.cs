@@ -47,12 +47,34 @@ public sealed class CredentialStore
 
     internal LogoutOutcome Logout(string? apiKey, string? authorization)
     {
+        if (HeaderPresenceFailure(apiKey, authorization) is { } failure)
+        {
+            return LogoutOutcome.Failed(failure);
+        }
+
         var token = BearerToken(authorization!)!;
         _sessions.TryRemove(token, out _);
         return LogoutOutcome.Succeeded(token);
     }
 
     internal CredentialFailure? Check(string? apiKey, string? authorization)
+    {
+        if (HeaderPresenceFailure(apiKey, authorization) is { } failure)
+        {
+            return failure;
+        }
+
+        if (authorization is not null)
+        {
+            return IsLiveSession(authorization) ? null : CredentialFailure.InvalidOrExpiredToken();
+        }
+
+        return _apiKeys.ContainsKey(apiKey!) ? null : CredentialFailure.UnknownApiKey();
+    }
+
+    // The first step of every credential check, and the only one logout applies: which headers are present, before
+    // any value is read.
+    private static CredentialFailure? HeaderPresenceFailure(string? apiKey, string? authorization)
     {
         var hasApiKey = !string.IsNullOrEmpty(apiKey);
         var hasAuthorization = authorization is not null;
@@ -61,17 +83,7 @@ public sealed class CredentialStore
             return CredentialFailure.NoCredential();
         }
 
-        if (hasApiKey && hasAuthorization)
-        {
-            return CredentialFailure.BothCredentialHeaders();
-        }
-
-        if (hasAuthorization)
-        {
-            return IsLiveSession(authorization!) ? null : CredentialFailure.InvalidOrExpiredToken();
-        }
-
-        return _apiKeys.ContainsKey(apiKey!) ? null : CredentialFailure.UnknownApiKey();
+        return hasApiKey && hasAuthorization ? CredentialFailure.BothCredentialHeaders() : null;
     }
 
     private bool IsLiveSession(string authorization) =>
