@@ -11,6 +11,7 @@ public sealed class GetServersTests
     public async Task With_no_topology_it_answers_an_empty_list()
     {
         await using var simulator = await ControlMSimulator.StartAsync();
+        simulator.Credentials.AddApiKey("APIKEY1");
         using var http = simulator.CreateHttpClient();
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/automation-api/config/servers", UriKind.Relative));
         request.Headers.Add("x-api-key", "APIKEY1");

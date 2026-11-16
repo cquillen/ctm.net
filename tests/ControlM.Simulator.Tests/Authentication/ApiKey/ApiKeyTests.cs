@@ -21,4 +21,21 @@ public sealed class ApiKeyTests
         (await response.Content.ReadAsStringAsync()).ShouldEqualJson(
             JsonFixture.Load("Authentication", "ApiKey", "GetServers.no-credential.json"));
     }
+
+    // The body for an unknown key is assumed (requirements section 4.8): no API token was available to probe.
+    [Test]
+    public async Task A_key_that_was_never_seeded_answers_401_with_the_assumed_body()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        simulator.Credentials.AddApiKey("APIKEY1");
+        using var http = simulator.CreateHttpClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, GetServers);
+        request.Headers.Add("x-api-key", "APIKEY2");
+
+        using var response = await http.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await response.Content.ReadAsStringAsync()).ShouldEqualJson(
+            JsonFixture.Load("Authentication", "ApiKey", "GetServers.unknown-api-key.json"));
+    }
 }
