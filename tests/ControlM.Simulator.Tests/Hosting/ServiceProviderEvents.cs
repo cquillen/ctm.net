@@ -4,25 +4,22 @@ using System.Diagnostics.Tracing;
 namespace ControlM.Simulator.Tests.Hosting;
 
 // Observes service providers through the events Microsoft.Extensions.DependencyInjection publishes, so a test can
-// see a provider built and disposed without reaching into the simulator. The listener is process wide and tests
-// run in parallel, so built providers are collected only within the caller's async flow, and every event is keyed
-// by the provider's hash code. Disposing a provider disposes its root scope, which raises ScopeDisposed with the
-// provider's hash code; there is no separate provider-disposed event.
+// see a provider built and disposed without reaching into the simulator. No caller-visible effect shows the
+// disposal: a client used afterwards fails on the disposed test server whether or not its provider was disposed.
+// The events identify a provider only by its hash code, never by reference. So that another test running in
+// parallel cannot add or match an event, both events are recorded only within the async flow that RecordAsync runs.
+// Disposing a provider disposes its root scope, which raises ScopeDisposed; there is no provider-disposed event.
 internal sealed class ServiceProviderEvents : EventListener
 {
-    private readonly AsyncLocal<List<int>?> _collector = new();
-    private readonly ConcurrentDictionary<int, bool> _disposed = new();
+    private readonly AsyncLocal<Recording?> _recording = new();
 
-    public IReadOnlyList<int> ProvidersBuiltBy(Action action)
+    public async Task<Recording> RecordAsync(Func<Task> action)
     {
-        var built = new List<int>();
-        _collector.Value = built;
-        action();
-        _collector.Value = null;
-        return built;
+        var recording = new Recording();
+        _recording.Value = recording;
+        await action();
+        return recording;
     }
-
-    public bool SawDisposed(int providerHashCode) => _disposed.ContainsKey(providerHashCode);
 
     protected override void OnEventSourceCreated(EventSource eventSource)
     {
@@ -34,7 +31,7 @@ internal sealed class ServiceProviderEvents : EventListener
 
     protected override void OnEventWritten(EventWrittenEventArgs eventData)
     {
-        if (eventData.Payload is not [int providerHashCode, ..])
+        if (_recording.Value is not { } recording || eventData.Payload is not [int providerHashCode, ..])
         {
             return;
         }
@@ -42,11 +39,18 @@ internal sealed class ServiceProviderEvents : EventListener
         switch (eventData.EventName)
         {
             case "ServiceProviderBuilt":
-                _collector.Value?.Add(providerHashCode);
+                recording.Built.Enqueue(providerHashCode);
                 return;
             case "ScopeDisposed":
-                _disposed[providerHashCode] = true;
+                recording.Disposed.Enqueue(providerHashCode);
                 return;
         }
+    }
+
+    internal sealed class Recording
+    {
+        public ConcurrentQueue<int> Built { get; } = new();
+
+        public ConcurrentQueue<int> Disposed { get; } = new();
     }
 }

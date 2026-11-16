@@ -50,16 +50,17 @@ public sealed class ControlMSimulatorTests
     {
         using var events = new ServiceProviderEvents();
         var simulator = await ControlMSimulator.StartAsync();
-        var providers = events.ProvidersBuiltBy(() =>
+        var creation = await events.RecordAsync(() =>
         {
             simulator.CreateClient();
             simulator.CreateClient();
+            return Task.CompletedTask;
         });
-        providers.Count.ShouldBe(2);
-        providers.ShouldAllBe(p => !events.SawDisposed(p));
+        creation.Built.Distinct().Count().ShouldBe(2);
+        creation.Disposed.ShouldBeEmpty();
 
-        await simulator.DisposeAsync();
+        var disposal = await events.RecordAsync(() => simulator.DisposeAsync().AsTask());
 
-        providers.ShouldAllBe(p => events.SawDisposed(p));
+        creation.Built.ShouldBeSubsetOf(disposal.Disposed);
     }
 }
