@@ -8,6 +8,8 @@ internal static class ErrorEnvelope
 
     public static ErrorList NoCredential() => Unauthenticated("Unauthenticated request: No authentication header was provided");
 
+    public static ErrorList InvalidOrExpiredToken() => Unauthenticated("User not found. Session token is invalid or expired.");
+
     public static ErrorList UnknownApiKey() => Unauthenticated(UnknownApiKeyMessage);
 
     // Assumed, requirements section 4.8: no API token was available to probe a real server with.

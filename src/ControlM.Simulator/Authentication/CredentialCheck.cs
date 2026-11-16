@@ -4,13 +4,19 @@ internal static class CredentialCheck
 {
     public const string ApiKeyHeader = "x-api-key";
 
+    // No bearer token is valid until session login exists, so an Authorization header without a seeded key fails.
     public static CredentialOutcome Check(CredentialStore store, string? apiKey, bool hasAuthorizationHeader)
     {
-        if (string.IsNullOrEmpty(apiKey))
+        if (!string.IsNullOrEmpty(apiKey) && store.HasApiKey(apiKey))
         {
-            return hasAuthorizationHeader ? CredentialOutcome.Accepted : CredentialOutcome.NoCredential;
+            return CredentialOutcome.Accepted;
         }
 
-        return store.HasApiKey(apiKey) ? CredentialOutcome.Accepted : CredentialOutcome.UnknownApiKey;
+        if (hasAuthorizationHeader)
+        {
+            return CredentialOutcome.InvalidOrExpiredToken;
+        }
+
+        return string.IsNullOrEmpty(apiKey) ? CredentialOutcome.NoCredential : CredentialOutcome.UnknownApiKey;
     }
 }
