@@ -33,21 +33,24 @@ internal sealed class SessionLoginScheme(
         return true;
     }
 
+    // Taking the lock lets a login still in flight finish, so its session is the one logged out.
     public async ValueTask DisposeAsync()
     {
-        _login.Dispose();
-        if (_token is null)
-        {
-            return;
-        }
-
         try
         {
-            await LogoutAsync(_token);
+            await _login.WaitAsync();
+            if (_token is { } token)
+            {
+                await LogoutAsync(token);
+            }
         }
         catch (Exception)
         {
             // Disposal never throws (docs/requirements.md section 3.4): a session the server keeps is its to expire.
+        }
+        finally
+        {
+            _login.Dispose();
         }
     }
 
