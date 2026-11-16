@@ -17,6 +17,7 @@ internal sealed class JournalRecording(RequestJournal journal)
             request.Method,
             request.Path.Value ?? string.Empty,
             QueryWithoutMark(request.QueryString),
+            default,
             context.Response.StatusCode));
     }
 
