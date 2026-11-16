@@ -68,6 +68,27 @@ public sealed class LogoutOnDisposalTests
         stub.Requests.Select(r => r.Uri.AbsolutePath).ShouldBe([_loginPath, "/automation-api/config/servers", _logoutPath]);
     }
 
+    [Test]
+    [Timeout(10_000)]
+    public async Task Disposing_the_provider_during_a_login_waits_for_it_then_logs_out_its_session(CancellationToken testTimeout)
+    {
+        var stub = LoggedInStub().Answering(_logoutPath, HttpStatusCode.OK, Fixture("Logout", "Logout.success.json"));
+        var hanging = new HangingHandler(stub);
+        var provider = TestClient.BuildWithSessionLogin(hanging);
+        hanging.Hold(_loginPath);
+        var call = provider.GetRequiredService<IControlMClient>()
+            .SendAsync(HttpMethod.Get, "/config/servers", cancellationToken: testTimeout);
+        await hanging.Entered.WaitAsync(testTimeout);
+
+        var disposal = provider.DisposeAsync().AsTask();
+        hanging.Release();
+
+        await Should.NotThrowAsync(disposal.WaitAsync(testTimeout));
+        await Should.NotThrowAsync(call);
+        stub.Requests.Where(r => r.Uri.AbsolutePath == _logoutPath)
+            .ShouldHaveSingleItem().Headers.GetValueOrDefault("Authorization").ShouldBe(["Bearer SIMTOKEN1"]);
+    }
+
     private static StubHandler LoggedInStub() =>
         StubHandler.Returning(HttpStatusCode.OK, "[]")
             .Answering(_loginPath, HttpStatusCode.OK, Fixture("Login", "Login.success.json"));
