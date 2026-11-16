@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using ControlM.Fixtures;
 using ControlM.Simulator.Hosting;
 using Shouldly;
@@ -20,6 +21,21 @@ public sealed class ApiKeyTests
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         (await response.Content.ReadAsStringAsync()).ShouldEqualJson(
             JsonFixture.Load("Authentication", "ApiKey", "GetServers.no-credential.json"));
+    }
+
+    [Test]
+    public async Task A_bearer_token_alone_answers_401_with_the_observed_body()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        using var http = simulator.CreateHttpClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, GetServers);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "TOKEN1");
+
+        using var response = await http.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await response.Content.ReadAsStringAsync()).ShouldEqualJson(
+            JsonFixture.Load("Authentication", "ApiKey", "GetServers.invalid-bearer-token.json"));
     }
 
     // The body for an unknown key is assumed (requirements section 4.8): no API token was available to probe.
