@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ControlM.Client/ControlM.Client.csproj" />
+    <Project Path="src/ControlM.Simulator/ControlM.Simulator.csproj" />
+    <Project Path="src/ControlM.Simulator.Tool/ControlM.Simulator.Tool.csproj" />
+    <Project Path="src/ControlM.SpecCheck/ControlM.SpecCheck.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ControlM.Client.Tests/ControlM.Client.Tests.csproj" />
+    <Project Path="tests/ControlM.Conformance.Tests/ControlM.Conformance.Tests.csproj" />
+    <Project Path="tests/ControlM.Simulator.Tests/ControlM.Simulator.Tests.csproj" />
+    <Project Path="tests/ControlM.SpecCheck.Tests/ControlM.SpecCheck.Tests.csproj" />
+  </Folder>
+</Solution>
