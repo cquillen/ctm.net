@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Net.Http.Headers;
+using ControlM.Client.Authentication.SessionLogin;
 
 namespace ControlM.Simulator.Authentication;
 
@@ -43,26 +45,31 @@ public sealed class CredentialStore
         return LoginOutcome.Succeeded(token);
     }
 
-    internal CredentialFailure? Check(string? apiKey, bool hasAuthorizationHeader)
+    internal CredentialFailure? Check(string? apiKey, string? authorization)
     {
         var hasApiKey = !string.IsNullOrEmpty(apiKey);
-        if (!hasApiKey && !hasAuthorizationHeader)
+        var hasAuthorization = authorization is not null;
+        if (!hasApiKey && !hasAuthorization)
         {
             return CredentialFailure.NoCredential();
         }
 
-        if (hasApiKey && hasAuthorizationHeader)
+        if (hasApiKey && hasAuthorization)
         {
             return CredentialFailure.BothCredentialHeaders();
         }
 
-        // The simulator issues no bearer token, so an Authorization header alone always fails (requirements section
-        // 4.8).
-        if (hasAuthorizationHeader)
+        if (hasAuthorization)
         {
-            return CredentialFailure.InvalidOrExpiredToken();
+            return IsLiveSession(authorization!) ? null : CredentialFailure.InvalidOrExpiredToken();
         }
 
         return _apiKeys.ContainsKey(apiKey!) ? null : CredentialFailure.UnknownApiKey();
     }
+
+    private bool IsLiveSession(string authorization) =>
+        AuthenticationHeaderValue.TryParse(authorization, out var header)
+        && string.Equals(header.Scheme, SessionLoginScheme.AuthenticationScheme, StringComparison.OrdinalIgnoreCase)
+        && header.Parameter is { } token
+        && _sessions.ContainsKey(token);
 }

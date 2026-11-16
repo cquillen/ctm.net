@@ -15,12 +15,14 @@ internal sealed class SessionLoginScheme(
     IHttpClientFactory httpClientFactory,
     string httpClientName) : ICredentialScheme
 {
+    public const string AuthenticationScheme = "Bearer";
+
     private string? _token;
 
     public async ValueTask ApplyAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         _token ??= await LoginAsync(cancellationToken);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
+        request.Headers.Authorization = new AuthenticationHeaderValue(AuthenticationScheme, _token);
     }
 
     private async Task<string> LoginAsync(CancellationToken cancellationToken)

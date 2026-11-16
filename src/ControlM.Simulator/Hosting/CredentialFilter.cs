@@ -12,7 +12,7 @@ internal sealed class CredentialFilter(CredentialStore credentials) : IEndpointF
         var headers = context.HttpContext.Request.Headers;
         var failure = credentials.Check(
             headers[ApiKeyScheme.HeaderName].FirstOrDefault(),
-            headers.Authorization.Count > 0);
+            headers.Authorization.FirstOrDefault());
         if (failure is not null)
         {
             return Results.Json(failure.Body, SimulatorJson.Options, statusCode: (int)failure.StatusCode);
