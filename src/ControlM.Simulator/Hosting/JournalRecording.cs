@@ -11,6 +11,12 @@ internal sealed class JournalRecording(RequestJournal journal, TimeProvider time
     public async Task InvokeAsync(HttpContext context, RequestDelegate next)
     {
         var request = context.Request;
+        if (request.Path.StartsWithSegments(ControlApiPath.Base))
+        {
+            await next(context);
+            return;
+        }
+
         var slot = journal.Admit();
         var arrival = time.GetUtcNow();
         await next(context);
