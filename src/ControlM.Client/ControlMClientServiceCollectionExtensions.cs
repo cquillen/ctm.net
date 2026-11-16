@@ -45,13 +45,25 @@ public static class ControlMClientServiceCollectionExtensions
                 o => o.SessionLogin is not { } login || !(string.IsNullOrWhiteSpace(login.Username) || string.IsNullOrWhiteSpace(login.Password)),
                 $"The user name and password given to {nameof(ControlMClientOptions)}.{nameof(ControlMClientOptions.UseSessionLogin)} must not be empty or whitespace.");
 
+        var httpClient = services.AddHttpClient<IControlMClient, ControlMClient>();
+
         // A singleton, for the reason in docs/requirements.md section 3.4.
-        services.TryAddSingleton(CredentialSchemeOf);
-        return ControlMPipeline.Compose(services.AddHttpClient<IControlMClient, ControlMClient>());
+        services.TryAddSingleton(provider => CredentialSchemeOf(provider, httpClient.Name));
+        return ControlMPipeline.Compose(httpClient);
     }
 
-    private static ICredentialScheme CredentialSchemeOf(IServiceProvider provider) =>
-        provider.GetRequiredService<IOptions<ControlMClientOptions>>().Value.ApiKey is { } apiKey
-            ? apiKey
-            : new SessionLoginScheme();
+    private static ICredentialScheme CredentialSchemeOf(IServiceProvider provider, string httpClientName)
+    {
+        var options = provider.GetRequiredService<IOptions<ControlMClientOptions>>().Value;
+        if (options.ApiKey is { } apiKey)
+        {
+            return apiKey;
+        }
+
+        return new SessionLoginScheme(
+            options.SessionLogin!,
+            options.Endpoint!,
+            provider.GetRequiredService<IHttpClientFactory>(),
+            httpClientName);
+    }
 }

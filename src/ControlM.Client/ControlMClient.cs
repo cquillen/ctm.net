@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using ControlM.Client.Errors;
+using ControlM.Client.Operations;
 using ControlM.Client.Serialization;
 using Microsoft.Extensions.Options;
 
@@ -7,7 +8,7 @@ namespace ControlM.Client;
 
 internal sealed class ControlMClient(HttpClient httpClient, IOptions<ControlMClientOptions> options) : IControlMClient
 {
-    private readonly string _endpoint = options.Value.Endpoint!.AbsoluteUri.TrimEnd('/');
+    private readonly Uri _endpoint = options.Value.Endpoint!;
 
     public async Task<T> SendAsync<T>(HttpMethod method, string path, object? body = null, CancellationToken cancellationToken = default)
     {
@@ -25,7 +26,7 @@ internal sealed class ControlMClient(HttpClient httpClient, IOptions<ControlMCli
         ArgumentNullException.ThrowIfNull(method);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        using var request = new HttpRequestMessage(method, RequestUri(path))
+        using var request = new HttpRequestMessage(method, RequestUri.Of(_endpoint, path))
         {
             Content = body is null ? null : JsonContent.Create(body, options: ControlMJson.Options),
         };
@@ -38,6 +39,4 @@ internal sealed class ControlMClient(HttpClient httpClient, IOptions<ControlMCli
         using var failure = response;
         throw await ApiFailure.ReadAsync(failure, method, path, operation: null, cancellationToken);
     }
-
-    private Uri RequestUri(string path) => new($"{_endpoint}/{path.TrimStart('/')}");
 }
