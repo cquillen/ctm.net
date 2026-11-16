@@ -45,7 +45,7 @@ public sealed class RequestJournal
     /// <c>/automation-api</c>, answered 404, and a wrong method on a real path, answered 405. Assert it is empty to show
     /// an application called nothing that does not exist.
     /// </summary>
-    public IReadOnlyList<JournalEntry> Unmatched => throw new NotImplementedException();
+    public IReadOnlyList<JournalEntry> Unmatched => [.. Entries.Where(entry => entry.Operation is null)];
 
     internal int Admit()
     {
