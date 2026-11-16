@@ -45,6 +45,37 @@ public sealed class BearerTokenTests
     }
 
     [Test]
+    public async Task A_token_is_accepted_just_before_the_session_lifetime_has_passed_unused()
+    {
+        var time = new FakeTimeProvider();
+        await using var simulator = await StartWithUserAsync(time);
+        using var http = simulator.CreateHttpClient();
+        await LogInAsync(http);
+
+        time.Advance(s_lifetime - TimeSpan.FromTicks(1));
+        using var response = await GetServersWithTokenAsync(http, "SIMTOKEN1");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Test]
+    public async Task A_request_inside_the_session_lifetime_extends_it()
+    {
+        var time = new FakeTimeProvider();
+        await using var simulator = await StartWithUserAsync(time);
+        using var http = simulator.CreateHttpClient();
+        await LogInAsync(http);
+        time.Advance(s_lifetime - TimeSpan.FromTicks(1));
+        using var extending = await GetServersWithTokenAsync(http, "SIMTOKEN1");
+        extending.EnsureSuccessStatusCode();
+
+        time.Advance(s_lifetime - TimeSpan.FromTicks(1));
+        using var response = await GetServersWithTokenAsync(http, "SIMTOKEN1");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Test]
     public async Task A_token_is_refused_once_the_session_lifetime_has_passed_unused()
     {
         var time = new FakeTimeProvider();
