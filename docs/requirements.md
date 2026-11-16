@@ -378,7 +378,7 @@ dotnet run --project src/ControlM.Simulator.Tool -- spec-check --spec <file> [--
 - Every observation of a real server in this project comes from one that reports API version 9.22.60, the target version; a probe need not ask again. The maintainer can probe it with session login only and holds no API token, so API key behavior is taken from BMC's documentation and Python client, and what they leave open is recorded in section 4.8.
 - The conformance suite is written against the client interface and runs against either the simulator or a real server.
 - A real server is opt-in and never used by CI. Its endpoint, credential, and the server, host and folder names to use come from environment variables prefixed `CTM_CONFORMANCE_`. When they are absent, the suite runs against the simulator.
-- A conformance test that arranges state through the simulator's test API is marked simulator-only and is skipped against a real server. The rest use only the client interface.
+- A conformance test that arranges state through the simulator's test API is marked simulator-only and is skipped against a real server. The rest use only the client interface A simulator-only test carries `[Category("SimulatorOnly")]`, as does a test of behavior not yet verifiable against a real server, such as API key authentication while no API token is available.
 - Every implemented operation has a test comparing its response with a fixture or a documented example.
 - The whole test suite runs in parallel and completes in under one minute.
 - Scale target: an in-process test can deploy generated definitions, order individual jobs in at least 100 sub-folders across several agents, fail a chosen job once, observe the rerun, and assert on the request journal, with no wall-clock waits.
