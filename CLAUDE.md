@@ -63,6 +63,10 @@ Issues and specs live in this repository's GitHub Issues, through the `gh` CLI. 
 
 The five default triage labels, each named for its role: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
 
+### Slice planning
+
+The slice map is issue #7, a table of planning issues. Run `/plan-slice` to plan the next one, from claiming it through closing it (`.claude/skills/plan-slice/`).
+
 ### Domain docs
 
 Single-context: one `GLOSSARY.md` at the repository root and ADRs in `docs/adr/`, both created when first needed. See `docs/agents/domain.md`.
