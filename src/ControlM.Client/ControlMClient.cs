@@ -20,6 +20,9 @@ internal sealed class ControlMClient(HttpClient httpClient, ControlMClientOption
 
     private async Task<HttpResponseMessage> SendCoreAsync(HttpMethod method, string path, object? body, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(method);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
         using var request = new HttpRequestMessage(method, RequestUri(path))
         {
             Content = body is null ? null : JsonContent.Create(body, options: ControlMJson.Options),
