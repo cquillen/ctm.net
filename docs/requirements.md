@@ -275,6 +275,7 @@ When the public documentation and the Python client do not settle a detail, choo
 | Wrong method on a real path | The same 405 as the observed `PATCH /run/jobs/status`, for every method, path and credential |
 | 401 for an API key that was never seeded | The message `Invalid API token.`; no API token was available to probe |
 | A seeded API key beside other credential headers | The key is enough; the other headers are ignored |
+| An `Authorization` header without a seeded API key | The invalid or expired token message, whatever the header's scheme and whether an unknown API key came with it |
 | A request with no credential and an invalid body | 401, not 400: the credential is checked before the body |
 
 ## 5. Simulator control
@@ -306,7 +307,7 @@ The journal holds every request to the Control-M API surface, including one answ
 
 ### 5.2 In-process use
 
-- `ControlMSimulator.StartAsync(o => o.TimeProvider = time)` starts an instance in milliseconds. `sim.CreateClient()` returns a real client wired to it, after seeding a fresh API key and configuring the client with it. `sim.CreateClient(o => ...)` lets the test choose the credential instead, such as an unknown key. `sim.CreateHttpClient()` returns a raw `HttpClient`, which sends no credential of its own.
+- `ControlMSimulator.StartAsync(o => o.TimeProvider = time)` starts an instance in milliseconds. `sim.CreateClient()` returns a real client wired to it, after seeding a fresh API key and configuring the client with it. `sim.CreateClient(o => ...)` lets the test choose the credential instead, such as an unknown key: it seeds no key, and runs the callback after setting the endpoint. `sim.CreateHttpClient()` returns a raw `HttpClient`, which sends no credential of its own.
 - Each test starts its own instance. Instances share no state, so tests run in parallel.
 - The in-process host uses the ASP.NET Core test server and opens no socket. The standalone host uses Kestrel. A dropped-connection fault reaches the client as a transient network failure under both.
 - Typed control calls act on the simulator core directly, with no HTTP round trip.
