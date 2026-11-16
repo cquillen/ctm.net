@@ -26,20 +26,29 @@ Structural rules:
 - `ControlM.Simulator` depends on no test framework. It takes a `TimeProvider` and returns ordinary objects.
 - Neither the client nor the simulator depends on an OpenAPI reader; only `ControlM.SpecCheck` does.
 - The typed client interface, the simulator test API and the control API are public surface. Everything else is `internal`.
-- Client and simulator are organized by operation within each area (session, deploy, run, config). Adding an operation or a job type adds files and one registration, with no central switch to edit.
+- Client and simulator are organized by area and, within each area, by operation. Adding an operation or a job type adds files and one registration, with no central switch to edit.
 
-## 2. Supported operations
+## 2. Areas and operations
 
-Contract types, client methods and simulator behavior exist only for these operations. Full API coverage is not a goal.
+The code, the namespaces and the public API are divided into five areas. The names follow Control-M's own vocabulary where it has a word.
+
+| Area | Meaning | BMC API service |
+| --- | --- | --- |
+| `Authentication` | Proving who the caller is: session login and logout, and API keys. | Session |
+| `Deployment` | Putting job definitions on a server. To *build* is to validate definitions without changing anything; to *deploy* is to validate them and install them. | Build, Deploy |
+| `Orders` | Asking Control-M to run something. To *order* a job or folder is to place an instance of it into the active environment so that it runs. It does not mean putting jobs in sequence. An order returns a run ID that tracks what it started. | Run |
+| `Jobs` | Job instances in the active environment: their status, the actions an operator can take on them, and their output and log. | Run |
+| `Topology` | What exists to run jobs on: servers, agents and host groups. | Config |
+
+Contract types, client methods and simulator behavior exist only for the operations below. Full API coverage is not a goal.
 
 | Area | Operations |
 | --- | --- |
-| Session | `POST /session/login`, `POST /session/logout` |
-| Build and deploy | `POST /build`, `POST /deploy`, `GET /deploy/poll`, `GET /deploy/jobs`, `GET /deploy/folders`, `DELETE /deploy/folder/{server}/{folderName}` |
-| Order and track | `POST /run/order`, `GET /run/status/{runId}`, `GET /run/jobs/status`, `GET /run/job/{jobId}/status` |
-| Job actions | `POST /run/job/{jobId}/` + `rerun`, `hold`, `free`, `kill`, `setToOk`, `confirm`, `runNow` |
-| Diagnostics | `GET /run/job/{jobId}/output`, `GET /run/job/{jobId}/log`, `GET /run/job/{jobId}/waitingInfo` |
-| Topology | `GET /config/servers`, `GET /config/server/{server}/agents`, `GET /config/server/{server}/hostgroups` |
+| `Authentication` | `POST /session/login`, `POST /session/logout` |
+| `Deployment` | `POST /build`, `POST /deploy`, `GET /deploy/poll`, `GET /deploy/jobs`, `GET /deploy/folders`, `DELETE /deploy/folder/{server}/{folderName}` |
+| `Orders` | `POST /run/order`, `GET /run/status/{runId}` |
+| `Jobs` | Status: `GET /run/jobs/status`, `GET /run/job/{jobId}/status`<br>Actions: `POST /run/job/{jobId}/` + `rerun`, `hold`, `free`, `kill`, `setToOk`, `confirm`, `runNow`<br>Diagnostics: `GET /run/job/{jobId}/output`, `GET /run/job/{jobId}/log`, `GET /run/job/{jobId}/waitingInfo` |
+| `Topology` | `GET /config/servers`, `GET /config/server/{server}/agents`, `GET /config/server/{server}/hostgroups` |
 
 Supported job types: `Job:Command`, `Job:Script`, `Job:EmbeddedScript`, `Job:FileWatcher`.
 
@@ -54,13 +63,14 @@ Both authentication schemes are supported: session login with a bearer token, an
 
 ### 3.2 Typed interface
 
-One root interface, `IControlMClient`, with three areas. Authentication is configured at registration (`services.AddControlMClient(o => ...)` with `UseSessionLogin` or `UseApiKey`) and is not part of the interface. The interface can be faked in the consumer's unit tests.
+One root interface, `IControlMClient`, exposes four of the areas as properties. Authentication is configured at registration (`services.AddControlMClient(o => ...)` with `UseSessionLogin` or `UseApiKey`) and is not part of the interface. The interface can be faked in the consumer's unit tests.
 
 | Area | Members |
 | --- | --- |
-| `Run` | `OrderJobAsync(JobRef, variables, options)` (the primary path), `OrderAsync(OrderRequest)` (whole folder or jobs filter), `GetRunStatusAsync`, `GetJobAsync`, `QueryJobsAsync`, `RerunAsync`, `HoldAsync`, `FreeAsync`, `KillAsync`, `SetToOkAsync`, `ConfirmAsync`, `RunNowAsync`, `GetOutputAsync`, `GetLogAsync`, `GetWaitingInfoAsync` |
-| `Deploy` | `BuildAsync`, `DeployAsync`, `GetJobsAsync`, `DeleteFolderAsync` |
-| `Config` | `GetServersAsync`, `GetAgentsAsync`, `GetHostGroupsAsync` |
+| `Orders` | `OrderJobAsync(JobRef, variables, options)` (the primary path), `OrderAsync(OrderRequest)` (whole folder or jobs filter), `GetRunStatusAsync` |
+| `Jobs` | `GetJobAsync`, `QueryJobsAsync`, `RerunAsync`, `HoldAsync`, `FreeAsync`, `KillAsync`, `SetToOkAsync`, `ConfirmAsync`, `RunNowAsync`, `GetOutputAsync`, `GetLogAsync`, `GetWaitingInfoAsync` |
+| `Deployment` | `BuildAsync`, `DeployAsync`, `GetJobsAsync`, `DeleteFolderAsync` |
+| `Topology` | `GetServersAsync`, `GetAgentsAsync`, `GetHostGroupsAsync` |
 
 The interface adds the typing the API lacks:
 
