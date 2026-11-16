@@ -192,7 +192,7 @@ The simulator reproduces the HTTP surface and observable behavior of the support
 - A known but unimplemented operation returns 501 with an `ErrorList` body naming the operation.
 - A path matching no known operation returns 404 as a real server does, whether or not the request carries a credential: one error entry with the message `Not Found`, the code `404`, and a `uri` holding the path without the `/automation-api` prefix or the query string. [ADR 0001](adr/0001-unknown-path-answers-404.md) gives the reason.
 - A path of an implemented operation called with a method it does not serve returns 405 as a real server does, whatever the credential: an `Allow` header naming the methods it serves, and one error entry with the message `Method Not Allowed`, the code `405`, and a `uri` formed as for the 404. The fallback route that answers the 404 matches every method, so ASP.NET Core routing never produces its own 405; the simulator works out the 405 and its `Allow` value from the endpoints registered for the path.
-- An unexpected call never succeeds silently, and the journal marks a request that matched no operation.
+- An unexpected call never succeeds silently, and the journal marks a request for an unknown operation, whether it was answered 404 or 405.
 - A real server sends its error bodies with no `Content-Type`, with CRLF line endings and a leading blank line. The simulator sends them as `application/json` and does not reproduce the formatting: a caller reads the JSON, and tests compare it by value.
 
 ### 4.2 Authentication
@@ -326,7 +326,7 @@ One set of control capabilities, exposed three ways over a single implementation
 | Credentials | `sim.Credentials` | `Authentication` | Seed users (`AddUser(username, password)`) and API keys; expire every live session (`ExpireSessions()`) or one (`ExpireSession(token)`). An expired and a revoked token look the same on the wire, so there is no separate revoke |
 | Virtual files | `sim.Files` | `VirtualFiles` | Create or remove paths on a host |
 | Time | `TimeProvider`, `sim.TriggerNewDay()` | `Jobs` | Advance the injected provider; trigger New Day |
-| Journal | `sim.Journal` | `Journal` | Every request received: operation, method, path, headers, body, time. A request that matched no operation is marked as such |
+| Journal | `sim.Journal` | `Journal` | Every request received: operation, method, path, query string, headers, body, time and status code. A request for an unknown operation has no operation |
 | State | `sim.State` | `Jobs`, `Orders` | Current state of any folder or job instance; every order received with its variables |
 | Reset | `sim.Reset()` | `Hosting` | Return to empty state |
 
@@ -334,7 +334,14 @@ The test API is named for what a test controls, so its property names need not m
 
 A job pattern is a glob over `folder/subfolder/job`. The most specific matching rule wins. A count in a rule, such as failing N times, is kept per job instance: every instance the rule matches fails its first N runs.
 
-The journal holds every request to the Control-M API surface, including one answered by a stub, a fault, a 501 or the unknown-operation 404. Control API calls, typed controls and operator actions are not journaled.
+The journal holds every request the simulator receives, including one refused for its credential and one answered by a stub, a fault, a 501, the unknown-operation 404 or the wrong-method 405. That includes a path outside `/automation-api`, which is answered with the same 404. Requests under `/__sim/`, typed controls and operator actions are not journaled.
+
+- `sim.Journal` is a `RequestJournal` with three members: `Entries`, a snapshot of every `JournalEntry` in the order the requests arrived; `Count(Operation)`, the number of requests routed to that operation, whatever they were answered; and `Unmatched`, the entries for unknown operations. A test filters `Entries` for anything else.
+- A `JournalEntry` is immutable. Its `Operation` is the client's `Operation`, or `null` for an unknown operation. `Path` is the whole path as received, with the `/automation-api` prefix; `Query` is the query string, empty when there is none. `Headers` is case-insensitive, with one string per name and repeated values joined by `, `. `Body` is the request body as UTF-8 text, empty when there is none. `Time` is when the request arrived, read from the `TimeProvider`. `Status` is the status code it was answered with, or `null` when no response was sent.
+- Headers and body are kept as received, credentials and passwords included. Every credential the simulator accepts is one a test seeded, and a test may assert which one was sent. Capture, which writes to disk, is what sanitizes.
+- The journal is unbounded; `sim.Reset()` empties it.
+- The journal model is in the `Journal` area and does not depend on ASP.NET Core. `Hosting` feeds it from a middleware that runs after routing and around every endpoint and filter. Each endpoint carries its `Operation` as endpoint metadata.
+- How a request answered by the named 501 is shown is decided with known operations.
 
 ### 5.2 In-process use
 
