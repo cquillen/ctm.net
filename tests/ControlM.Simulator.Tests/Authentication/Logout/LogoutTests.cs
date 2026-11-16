@@ -61,6 +61,40 @@ public sealed class LogoutTests
             """{"message":"Successfully logged out from session SIMTOKEN7"}""");
     }
 
+    [Test]
+    public async Task No_credential_header_answers_the_no_credential_401()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        using var http = simulator.CreateHttpClient();
+
+        using var response = await http.PostAsync(Logout, content: null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await response.Content.ReadAsStringAsync()).ShouldEqualJson(
+            JsonFixture.Load("Authentication", "ApiKey", "GetServers.no-credential.json"));
+    }
+
+    [Test]
+    public async Task Both_credential_headers_answer_the_both_headers_401()
+    {
+        await using var simulator = await ControlMSimulator.StartAsync();
+        simulator.Credentials.AddUser("USER1", "PASSWORD1");
+        simulator.Credentials.AddApiKey("APIKEY1");
+        using var http = simulator.CreateHttpClient();
+        await LogInAsync(http);
+        using var request = new HttpRequestMessage(HttpMethod.Post, Logout);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "SIMTOKEN1");
+        request.Headers.Add("x-api-key", "APIKEY1");
+
+        using var response = await http.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await response.Content.ReadAsStringAsync()).ShouldEqualJson(
+            JsonFixture.Load("Authentication", "ApiKey", "GetServers.both-headers.json"));
+        using var afterRefusal = await SendWithTokenAsync(http, HttpMethod.Get, GetServers, "SIMTOKEN1");
+        afterRefusal.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
     private static async Task LogInAsync(HttpClient http)
     {
         using var response = await http.PostAsync(
