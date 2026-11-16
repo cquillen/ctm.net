@@ -143,7 +143,8 @@ Behavior:
 
 - An API failure throws `ControlMApiException`, carrying the status code, every entry of the `ErrorList` body, the method and path, and the operation. A call made through `SendAsync<T>` has no operation. Subtypes: `ControlMAuthenticationException` (401 after one re-login) and `ControlMNotFoundException` (404).
 - An error entry carries the server's `message` and, where the server sends them, `id`, `item`, `file`, `line`, `col`, `code` and `uri`. The first six come from the Python client; `code` and `uri` were observed on a real server.
-- A failure whose body is not an `ErrorList` still throws `ControlMApiException`, with no entries and the text of the body.
+- The path the exception carries is the one the caller gave, relative to the endpoint and with its query string. Its message names the status code, the method, the path and the first error message.
+- A failure whose body is not an `ErrorList` still throws `ControlMApiException`, with no entries and the text of the body. A body counts as an `ErrorList` only when it parses as one and every entry has a message.
 - Build and deploy validation problems are returned as a result (`BuildResult`, `DeployResult`), not thrown.
 - A job that ended badly is data, not an exception.
 
@@ -351,6 +352,7 @@ dotnet run --project src/ControlM.Simulator.Tool -- spec-check --spec <file> [--
 - Simulator tests compare raw response JSON with fixtures or documented examples, not DTO round-trips, so the client and simulator cannot agree while both are wrong.
 - Client tests deserialize the raw fixtures directly, with no simulator involved.
 - Fixtures are written by hand from the public documentation and the Python client: real shapes, invented values. Each has one copy, shared by the test projects that use it.
+- A test project brings in the fixtures, and `JsonFixture`, which loads one and compares JSON by value, by importing `tests/Fixtures/Fixtures.props`. There is no shared test project.
 - Identifiers the simulator generates (order IDs, run IDs, poll IDs, session tokens) come from a per-instance sequence, so the same calls on a new instance produce the same values and a fixture can hold them literally.
 - The conformance suite is written against the client interface and runs against either the simulator or a real server.
 - A real server is opt-in and never used by CI. Its endpoint, credential, and the server, host and folder names to use come from environment variables prefixed `CTM_CONFORMANCE_`. When they are absent, the suite runs against the simulator.
