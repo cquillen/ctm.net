@@ -1,3 +1,4 @@
+using ControlM.Client.Authentication.ApiKey;
 using ControlM.Client.Errors;
 using ControlM.Simulator.Authentication;
 using ControlM.Simulator.Errors;
@@ -13,7 +14,7 @@ internal sealed class CredentialFilter(CredentialStore credentials) : IEndpointF
         var headers = context.HttpContext.Request.Headers;
         var outcome = CredentialCheck.Check(
             credentials,
-            headers[CredentialCheck.ApiKeyHeader].FirstOrDefault(),
+            headers[ApiKeyScheme.HeaderName].FirstOrDefault(),
             headers.Authorization.Count > 0);
         if (outcome != CredentialOutcome.Accepted)
         {

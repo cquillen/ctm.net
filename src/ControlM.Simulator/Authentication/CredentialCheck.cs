@@ -2,8 +2,6 @@ namespace ControlM.Simulator.Authentication;
 
 internal static class CredentialCheck
 {
-    public const string ApiKeyHeader = "x-api-key";
-
     // No bearer token is valid until session login exists, so an Authorization header without a seeded key fails.
     public static CredentialOutcome Check(CredentialStore store, string? apiKey, bool hasAuthorizationHeader)
     {
