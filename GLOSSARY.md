@@ -148,6 +148,10 @@ A job action applied directly to the simulator, as an operator at a Control-M co
 **Virtual file**:
 A path that exists on an agent, with no content.
 
+**Conformance target**:
+The server the conformance suite runs against: the in-process simulator, or a real server named by the `CTM_CONFORMANCE_` variables.
+_Avoid_: environment
+
 **Journal**:
 The record of every request the simulator received, other than those to its control API.
 
