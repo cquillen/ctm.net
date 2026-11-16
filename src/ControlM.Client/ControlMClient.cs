@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using ControlM.Client.Errors;
 using ControlM.Client.Serialization;
 
 namespace ControlM.Client;
@@ -27,7 +28,14 @@ internal sealed class ControlMClient(HttpClient httpClient, ControlMClientOption
         {
             Content = body is null ? null : JsonContent.Create(body, options: ControlMJson.Options),
         };
-        return await httpClient.SendAsync(request, cancellationToken);
+        var response = await httpClient.SendAsync(request, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            return response;
+        }
+
+        using var failure = response;
+        throw await ApiFailure.ReadAsync(failure, cancellationToken);
     }
 
     private Uri RequestUri(string path) => new($"{_endpoint}/{path.TrimStart('/')}");
