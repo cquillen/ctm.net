@@ -38,7 +38,8 @@ public static class ControlMClientServiceCollectionExtensions
             .Validate(
                 o => o.CredentialScheme is not ApiKeyScheme { IsBlank: true },
                 $"The key given to {nameof(ControlMClientOptions)}.{nameof(ControlMClientOptions.UseApiKey)} must not be empty or whitespace.");
-        // A singleton, because IHttpClientFactory rotates handlers and a scheme's state must outlive them.
+
+        // A singleton, for the reason in docs/requirements.md section 3.4.
         services.TryAddSingleton<ICredentialScheme>(
             provider => provider.GetRequiredService<IOptions<ControlMClientOptions>>().Value.CredentialScheme!);
         return ControlMPipeline.Compose(services.AddHttpClient<IControlMClient, ControlMClient>());
