@@ -13,6 +13,10 @@ dotnet format        # fix formatting; verify.sh fails on unformatted code
 
 `eng/verify.sh` must pass before a push. CI is a backstop, not the gate.
 
+## Worktrees
+
+Every change happens in a git worktree of its own, on its own branch. The default checkout is shared by the human and by every session, so treat it as read-only: no checkout, pull, merge, commit or edit there. Create the worktree under `.claude/worktrees/`, which is ignored (`git worktree add .claude/worktrees/<name> -b <branch> origin/main`), run every build, test and git command inside it, and remove it once its branch is merged. To move a branch without a checkout, push to it (`git push origin <commit>:refs/heads/<branch>`) or fetch into it (`git fetch origin main:main`).
+
 ## Projects
 
 - `ControlM.Client` references nothing else in the solution.
