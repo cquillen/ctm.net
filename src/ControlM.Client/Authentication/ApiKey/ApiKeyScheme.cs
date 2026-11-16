@@ -6,5 +6,9 @@ internal sealed class ApiKeyScheme(string? key) : ICredentialScheme
 
     public bool IsBlank => string.IsNullOrWhiteSpace(key);
 
-    public void Apply(HttpRequestMessage request) => request.Headers.Add(HeaderName, key);
+    public void Apply(HttpRequestMessage request)
+    {
+        request.Headers.Remove(HeaderName);
+        request.Headers.Add(HeaderName, key);
+    }
 }
