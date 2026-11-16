@@ -36,6 +36,12 @@ public sealed class CredentialStore
     /// <param name="password">The user's password.</param>
     public void AddUser(string username, string password) => _users[username] = password;
 
+    /// <summary>
+    /// Ends every live session, as if each had gone unused for its whole lifetime. Each token is refused from then on,
+    /// and a session client logs in again on its next call.
+    /// </summary>
+    public void ExpireSessions() => throw new NotImplementedException();
+
     internal LoginOutcome Login(string? username, string? password)
     {
         if (username is null || password is null || !_users.TryGetValue(username, out var seededPassword))
