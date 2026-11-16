@@ -28,8 +28,16 @@ The rules for writing code here are in `docs/conventions.md`, imported in full b
 
 ## Not yet in place
 
-- **Zero-tests setting.** The test projects start empty, so `tests/Directory.Build.props` passes `--ignore-exit-code 8` to tolerate a run that finds no tests. Remove that line in the change that adds the first real test.
-- **ASP.NET Core boundary test.** The conventions name a reflection test that keeps ASP.NET Core at the edge of the simulator. Write it, test first, in the change that adds the first simulator endpoint.
+- **Zero-tests setting.** The test projects start empty, so each test project file passes `--ignore-exit-code 8` to tolerate a run that finds no tests. Remove the line from a project in the change that adds that project's first test.
+- **ASP.NET Core boundary test.** The conventions name a reflection test that keeps ASP.NET Core at the edge of the simulator. Write it in the change that adds the first simulator endpoint, and prove it can fail as the conventions describe for structural tests.
+- **Fixture folder.** `tests/Fixtures/` and the link that brings fixtures into a test project do not exist yet. Add them in the change that adds the first fixture.
+
+## Slices
+
+- **A slice is one feature, or one behavior of a feature, taken through every project it applies to**: client, simulator, and the tests in each. It is one branch and one pull request.
+- **Done means**: `eng/verify.sh` passes; the feature has its folder and tests in each project it applies to; every implemented operation has its fixture test; and anything decided along the way that the requirements did not settle is recorded in `docs/requirements.md` in the same pull request, with assumed Control-M behavior going in section 4.8.
+- **Commit subjects** are `<type>: <summary>` in the imperative, with type one of `feat`, `fix`, `test`, `refactor`, `docs`, `build`, `ci`.
+- **When a rule cannot be followed, or two rules conflict, stop and say so.** Do not pick a reading silently.
 
 ## Pull requests
 
