@@ -52,6 +52,7 @@ public sealed class ErrorMappingTests
     [Arguments("<html><body><h1>502 Bad Gateway</h1></body></html>")]
     [Arguments("")]
     [Arguments("""{"error":"Bad Gateway"}""")]
+    [Arguments("""{"errors":[{"code":"502"}]}""")]
     public async Task A_failure_body_that_is_not_an_error_list_gives_no_entries_and_the_body_text(string body)
     {
         var stub = StubHandler.Returning(HttpStatusCode.BadGateway, body);

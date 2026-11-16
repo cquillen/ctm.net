@@ -11,8 +11,9 @@ public sealed class ControlMNotFoundException : ControlMApiException
     /// Creates the exception for a call answered with 404.
     /// </summary>
     /// <param name="errors">Every entry of the response's error list, or none when the body was not one.</param>
-    public ControlMNotFoundException(IReadOnlyList<ControlMError> errors)
-        : base(HttpStatusCode.NotFound, errors)
+    /// <param name="responseBody">The text of the response body when it was not an error list.</param>
+    public ControlMNotFoundException(IReadOnlyList<ControlMError> errors, string? responseBody)
+        : base(HttpStatusCode.NotFound, errors, responseBody)
     {
     }
 }

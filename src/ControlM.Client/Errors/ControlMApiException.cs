@@ -12,12 +12,14 @@ public class ControlMApiException : Exception
     /// </summary>
     /// <param name="statusCode">The status code of the response.</param>
     /// <param name="errors">Every entry of the response's error list, or none when the body was not one.</param>
-    public ControlMApiException(HttpStatusCode statusCode, IReadOnlyList<ControlMError> errors)
+    /// <param name="responseBody">The text of the response body when it was not an error list.</param>
+    public ControlMApiException(HttpStatusCode statusCode, IReadOnlyList<ControlMError> errors, string? responseBody)
         : base($"Control-M answered {(int)statusCode}.")
     {
         ArgumentNullException.ThrowIfNull(errors);
         StatusCode = statusCode;
         Errors = errors;
+        ResponseBody = responseBody;
     }
 
     /// <summary>
