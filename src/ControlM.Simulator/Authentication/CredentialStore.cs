@@ -46,7 +46,7 @@ public sealed class CredentialStore
     /// Ends the session of one token and leaves the others live. A token that is not live is ignored.
     /// </summary>
     /// <param name="token">The token login returned, such as <c>SIMTOKEN1</c>.</param>
-    public void ExpireSession(string token) => throw new NotImplementedException();
+    public void ExpireSession(string token) => _sessions.TryRemove(token, out _);
 
     internal LoginOutcome Login(string? username, string? password)
     {
