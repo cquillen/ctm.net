@@ -89,6 +89,15 @@ public sealed class ControlMSimulator : IAsyncDisposable
         return provider.GetRequiredService<IControlMClient>();
     }
 
+    /// <summary>
+    /// Returns a real <see cref="IControlMClient"/> whose requests reach this instance under <c>/automation-api</c>,
+    /// with no socket, configured by <paramref name="configure"/>. The simulator seeds no key: the callback chooses the
+    /// credential, such as <c>o =&gt; o.UseApiKey("APIKEY1")</c>, and runs after the endpoint is set. The client is
+    /// released when the simulator is disposed.
+    /// </summary>
+    /// <param name="configure">Sets the client's options; it must choose an authentication scheme.</param>
+    public IControlMClient CreateClient(Action<ControlMClientOptions> configure) => throw new NotImplementedException();
+
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
