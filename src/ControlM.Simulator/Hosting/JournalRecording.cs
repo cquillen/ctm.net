@@ -11,6 +11,6 @@ internal sealed class JournalRecording(RequestJournal journal)
     public async Task InvokeAsync(HttpContext context, RequestDelegate next)
     {
         await next(context);
-        journal.Record(new JournalEntry(context.GetEndpoint()?.Metadata.GetMetadata<Operation>()));
+        journal.Record(new JournalEntry(context.GetEndpoint()?.Metadata.GetMetadata<Operation>(), string.Empty, string.Empty, string.Empty, null));
     }
 }
