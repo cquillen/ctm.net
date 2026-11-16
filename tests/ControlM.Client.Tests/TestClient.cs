@@ -13,12 +13,15 @@ internal static class TestClient
     public const string Password = "PASSWORD1";
 
     public static IControlMClient Create(HttpMessageHandler primaryHandler, string endpoint = Endpoint) =>
-        Create(primaryHandler, endpoint, o => o.UseApiKey(ApiKey));
+        BuildProvider(primaryHandler, endpoint, o => o.UseApiKey(ApiKey)).GetRequiredService<IControlMClient>();
 
     public static IControlMClient CreateWithSessionLogin(HttpMessageHandler primaryHandler) =>
-        Create(primaryHandler, Endpoint, o => o.UseSessionLogin(Username, Password));
+        BuildWithSessionLogin(primaryHandler).GetRequiredService<IControlMClient>();
 
-    private static IControlMClient Create(
+    public static ServiceProvider BuildWithSessionLogin(HttpMessageHandler primaryHandler) =>
+        BuildProvider(primaryHandler, Endpoint, o => o.UseSessionLogin(Username, Password));
+
+    private static ServiceProvider BuildProvider(
         HttpMessageHandler primaryHandler,
         string endpoint,
         Action<ControlMClientOptions> chooseScheme)
@@ -30,6 +33,6 @@ internal static class TestClient
                 chooseScheme(o);
             })
             .ConfigurePrimaryHttpMessageHandler(() => primaryHandler);
-        return services.BuildServiceProvider().GetRequiredService<IControlMClient>();
+        return services.BuildServiceProvider();
     }
 }
