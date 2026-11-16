@@ -23,13 +23,13 @@ internal sealed class SessionLoginScheme(
 
     public async ValueTask ApplyAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        var token = _token ?? await ReplaceTokenAsync(refusedToken: null, cancellationToken);
+        var token = _token ?? await ObtainTokenAsync(refusedToken: null, cancellationToken);
         request.Headers.Authorization = new AuthenticationHeaderValue(AuthenticationScheme, token);
     }
 
     public async ValueTask<bool> TryRecoverAsync(HttpRequestMessage refused, CancellationToken cancellationToken)
     {
-        await ReplaceTokenAsync(refused.Headers.Authorization?.Parameter, cancellationToken);
+        await ObtainTokenAsync(refused.Headers.Authorization?.Parameter, cancellationToken);
         return true;
     }
 
@@ -51,8 +51,8 @@ internal sealed class SessionLoginScheme(
         }
     }
 
-    // Callers that wait here while another logs in find the token replaced, and so share that login.
-    private async Task<string> ReplaceTokenAsync(string? refusedToken, CancellationToken cancellationToken)
+    // Callers that wait here while another logs in find that login's token, and so share it.
+    private async Task<string> ObtainTokenAsync(string? refusedToken, CancellationToken cancellationToken)
     {
         await _login.WaitAsync(cancellationToken);
         try
