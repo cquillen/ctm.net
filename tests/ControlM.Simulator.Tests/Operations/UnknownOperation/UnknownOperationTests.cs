@@ -22,11 +22,15 @@ public sealed class UnknownOperationTests
     }
 
     [Test]
-    public async Task Another_method_on_an_unknown_path_gets_the_same_404()
+    [Arguments("POST")]
+    [Arguments("PUT")]
+    [Arguments("PATCH")]
+    [Arguments("DELETE")]
+    public async Task Another_method_on_an_unknown_path_gets_the_same_404(string method)
     {
         await using var simulator = await ControlMSimulator.StartAsync();
         using var http = simulator.CreateHttpClient();
-        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri("/automation-api/no/such/path", UriKind.Relative));
+        using var request = new HttpRequestMessage(new HttpMethod(method), new Uri("/automation-api/no/such/path", UriKind.Relative));
 
         using var response = await http.SendAsync(request);
 
