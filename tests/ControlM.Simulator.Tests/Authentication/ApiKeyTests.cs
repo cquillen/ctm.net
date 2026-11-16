@@ -61,7 +61,6 @@ public sealed class ApiKeyTests
             JsonFixture.Load("Authentication", "ApiKey", "GetServers.both-headers.json"));
     }
 
-    // The body for an unknown key is assumed (requirements section 4.8): no API token was available to probe.
     [Test]
     public async Task A_key_seeded_on_one_instance_is_unknown_to_another()
     {
@@ -74,14 +73,13 @@ public sealed class ApiKeyTests
 
         using var response = await http.SendAsync(request);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await response.Content.ReadAsStringAsync()).ShouldEqualJson(
             JsonFixture.Load("Authentication", "ApiKey", "GetServers.unknown-api-key.json"));
     }
 
-    // The body for an unknown key is assumed (requirements section 4.8): no API token was available to probe.
     [Test]
-    public async Task A_key_that_was_never_seeded_answers_401_with_the_assumed_body()
+    public async Task A_key_that_was_never_seeded_answers_400_with_the_observed_body()
     {
         await using var simulator = await ControlMSimulator.StartAsync();
         simulator.Credentials.AddApiKey("APIKEY1");
@@ -91,7 +89,7 @@ public sealed class ApiKeyTests
 
         using var response = await http.SendAsync(request);
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await response.Content.ReadAsStringAsync()).ShouldEqualJson(
             JsonFixture.Load("Authentication", "ApiKey", "GetServers.unknown-api-key.json"));
     }

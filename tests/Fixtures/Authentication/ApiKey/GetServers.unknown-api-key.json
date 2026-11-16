@@ -1,7 +1,7 @@
 {
   "errors": [
     {
-      "message": "Invalid API token."
+      "message": "Cannot validate token value, decode failed"
     }
   ]
 }
