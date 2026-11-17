@@ -3,6 +3,7 @@ using ControlM.Client;
 using ControlM.Simulator.Authentication;
 using ControlM.Simulator.Authentication.Login;
 using ControlM.Simulator.Authentication.Logout;
+using ControlM.Simulator.Journal;
 using ControlM.Simulator.Operations;
 using ControlM.Simulator.Operations.UnknownOperation;
 using ControlM.Simulator.Topology.GetServers;
@@ -25,10 +26,11 @@ public sealed class ControlMSimulator : IAsyncDisposable
     private readonly ConcurrentBag<ServiceProvider> _clientProviders = [];
     private readonly ApiKeySequence _apiKeys = new();
 
-    private ControlMSimulator(WebApplication app, CredentialStore credentials)
+    private ControlMSimulator(WebApplication app, CredentialStore credentials, RequestJournal journal)
     {
         _app = app;
         Credentials = credentials;
+        Journal = journal;
     }
 
     /// <summary>
@@ -36,6 +38,12 @@ public sealed class ControlMSimulator : IAsyncDisposable
     /// <see cref="HttpClient"/>, or a user for a client created with <c>o =&gt; o.UseSessionLogin(...)</c>.
     /// </summary>
     public CredentialStore Credentials { get; }
+
+    /// <summary>
+    /// The requests this instance received over the Control-M API, in the order they arrived, each with the operation
+    /// it was routed to and the status code it was answered with.
+    /// </summary>
+    public RequestJournal Journal { get; }
 
     /// <summary>
     /// Starts a simulator instance.
@@ -54,11 +62,14 @@ public sealed class ControlMSimulator : IAsyncDisposable
         builder.WebHost.UseTestServer();
         var app = builder.Build();
         var credentials = new CredentialStore(options.TimeProvider, options.SessionLifetime);
+        var journal = new RequestJournal(options.TimeProvider);
+        app.UseRouting();
+        app.Use(new JournalRecording(journal).InvokeAsync);
         MapSessionOperations(app.MapGroup(ApiPath.Base), credentials);
         MapOperations(app.MapGroup(ApiPath.Base).AddEndpointFilter(new CredentialFilter(credentials)));
         UnknownOperationEndpoint.Map(app).AddEndpointFilter(new WrongMethodFilter(app.Services.GetRequiredService<EndpointDataSource>()));
         await app.StartAsync(cancellationToken);
-        return new ControlMSimulator(app, credentials);
+        return new ControlMSimulator(app, credentials, journal);
     }
 
     // The one registration of each implemented operation. The session operations check no credential of their own.

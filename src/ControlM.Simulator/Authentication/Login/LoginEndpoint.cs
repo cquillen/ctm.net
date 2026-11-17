@@ -1,6 +1,7 @@
 using System.Text.Json;
 using ControlM.Client.Authentication.Login;
 using ControlM.Client.Operations;
+using ControlM.Simulator.Operations;
 using ControlM.Simulator.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -10,12 +11,9 @@ namespace ControlM.Simulator.Authentication.Login;
 
 internal static class LoginEndpoint
 {
-    private static Operation Operation => Operation.Login;
-
     public static void Map(IEndpointRouteBuilder routes, CredentialStore credentials) =>
-        routes.MapMethods(
-            Operation.Path,
-            [Operation.Method.Method],
+        routes.MapOperation(
+            Operation.Login,
             (HttpRequest request, CancellationToken cancellationToken) => AnswerAsync(request, credentials, cancellationToken));
 
     private static async Task<IResult> AnswerAsync(HttpRequest request, CredentialStore credentials, CancellationToken cancellationToken)
