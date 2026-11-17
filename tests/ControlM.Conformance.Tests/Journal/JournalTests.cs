@@ -9,7 +9,7 @@ namespace ControlM.Conformance.Tests.Journal;
 public sealed class JournalTests
 {
     [Test]
-    [Category("SimulatorOnly")]
+    [Category(SimulatorOnlySkipAttribute.Category)]
     public async Task A_call_through_the_client_is_counted_for_its_operation()
     {
         await using var simulator = await ControlMSimulator.StartAsync();
@@ -21,7 +21,7 @@ public sealed class JournalTests
     }
 
     [Test]
-    [Category("SimulatorOnly")]
+    [Category(SimulatorOnlySkipAttribute.Category)]
     public async Task Valid_calls_through_the_client_leave_nothing_unmatched()
     {
         await using var simulator = await ControlMSimulator.StartAsync();

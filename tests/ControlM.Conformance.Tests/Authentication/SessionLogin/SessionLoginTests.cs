@@ -9,7 +9,7 @@ namespace ControlM.Conformance.Tests.Authentication.SessionLogin;
 public sealed class SessionLoginTests
 {
     [Test]
-    [Category("SimulatorOnly")]
+    [Category(SimulatorOnlySkipAttribute.Category)]
     public async Task A_client_with_session_login_reads_the_servers_as_an_array()
     {
         await using var simulator = await ControlMSimulator.StartAsync();
@@ -22,7 +22,7 @@ public sealed class SessionLoginTests
     }
 
     [Test]
-    [Category("SimulatorOnly")]
+    [Category(SimulatorOnlySkipAttribute.Category)]
     public async Task A_client_logs_in_again_after_every_session_expires()
     {
         await using var simulator = await ControlMSimulator.StartAsync();
