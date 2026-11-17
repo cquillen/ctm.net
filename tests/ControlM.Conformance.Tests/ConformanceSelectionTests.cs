@@ -142,6 +142,27 @@ public sealed class ConformanceSelectionTests
     }
 
     [Test]
+    [Arguments("CTM_CONFORMANCE_ENDPOINT")]
+    [Arguments("CTM_CONFORMANCE_USERNAME")]
+    [Arguments("CTM_CONFORMANCE_PASSWORD")]
+    public void A_variable_set_under_two_spellings_is_invalid_naming_it(string name)
+    {
+        var environment = new Dictionary<string, string>
+        {
+            ["CTM_CONFORMANCE_ENDPOINT"] = "https://host1.test:8443/automation-api",
+            ["CTM_CONFORMANCE_USERNAME"] = "USER1",
+            ["CTM_CONFORMANCE_PASSWORD"] = "PASSWORDVALUE1",
+        };
+        environment[name.ToLowerInvariant()] = "VALUE2";
+
+        var selection = ConformanceSelection.From(environment);
+
+        var error = selection.ShouldBeOfType<ConformanceSelection.Invalid>().Errors.ShouldHaveSingleItem();
+        error.ShouldContain(name);
+        error.ShouldNotContain("VALUE");
+    }
+
+    [Test]
     [Arguments("")]
     [Arguments(" 	")]
     public void A_blank_api_key_counts_as_missing(string key)
