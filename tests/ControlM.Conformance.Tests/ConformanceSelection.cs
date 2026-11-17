@@ -2,11 +2,11 @@ namespace ControlM.Conformance.Tests;
 
 internal abstract record ConformanceSelection
 {
-    private const string _prefix = "CTM_CONFORMANCE_";
-    private const string _endpoint = _prefix + "ENDPOINT";
-    private const string _apiKey = _prefix + "API_KEY";
-    private const string _username = _prefix + "USERNAME";
-    private const string _password = _prefix + "PASSWORD";
+    internal const string Prefix = "CTM_CONFORMANCE_";
+    private const string _endpoint = Prefix + "ENDPOINT";
+    private const string _apiKey = Prefix + "API_KEY";
+    private const string _username = Prefix + "USERNAME";
+    private const string _password = Prefix + "PASSWORD";
 
     public static ConformanceSelection From(IReadOnlyDictionary<string, string> environment)
     {
@@ -32,7 +32,7 @@ internal abstract record ConformanceSelection
         return new RealServer(endpoint, credential);
     }
 
-    private static bool IsPrefixed(string name) => name.StartsWith(_prefix, StringComparison.OrdinalIgnoreCase);
+    private static bool IsPrefixed(string name) => name.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase);
 
     private static List<string> DuplicatedNames(IReadOnlyDictionary<string, string> environment) =>
         environment.Keys
@@ -47,7 +47,7 @@ internal abstract record ConformanceSelection
         var value = Read(environment, _endpoint);
         if (value is null)
         {
-            errors.Add($"{_endpoint} is required when any {_prefix} variable is set.");
+            errors.Add($"{_endpoint} is required when any {Prefix} variable is set.");
             return null;
         }
 
