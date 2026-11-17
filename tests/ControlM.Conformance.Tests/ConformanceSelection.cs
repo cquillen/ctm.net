@@ -3,6 +3,8 @@ namespace ControlM.Conformance.Tests;
 internal abstract record ConformanceSelection
 {
     private const string _prefix = "CTM_CONFORMANCE_";
+    private const string _endpoint = _prefix + "ENDPOINT";
+    private const string _apiKey = _prefix + "API_KEY";
 
     public static ConformanceSelection From(IReadOnlyDictionary<string, string> environment)
     {
@@ -11,7 +13,12 @@ internal abstract record ConformanceSelection
             return new Simulator();
         }
 
-        return new Invalid([$"{_prefix}ENDPOINT is required when any {_prefix} variable is set."]);
+        if (environment.TryGetValue(_endpoint, out var endpoint) && environment.TryGetValue(_apiKey, out var key))
+        {
+            return new RealServer(new Uri(endpoint), new ConformanceCredential.ApiKey(key));
+        }
+
+        return new Invalid([$"{_endpoint} is required when any {_prefix} variable is set."]);
     }
 
     public sealed record Simulator : ConformanceSelection;
