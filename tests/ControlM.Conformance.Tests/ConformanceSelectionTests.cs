@@ -78,4 +78,19 @@ public sealed class ConformanceSelectionTests
             new Uri("https://host1.test:8443/automation-api"),
             new ConformanceCredential.ApiKey("APIKEY1")));
     }
+
+    [Test]
+    [Arguments("")]
+    [Arguments(" 	")]
+    public void A_blank_api_key_counts_as_missing(string key)
+    {
+        var selection = ConformanceSelection.From(new Dictionary<string, string>
+        {
+            ["CTM_CONFORMANCE_ENDPOINT"] = "https://host1.test:8443/automation-api",
+            ["CTM_CONFORMANCE_API_KEY"] = key,
+        });
+
+        selection.ShouldBeOfType<ConformanceSelection.Invalid>()
+            .Errors.ShouldHaveSingleItem().ShouldContain("CTM_CONFORMANCE_API_KEY");
+    }
 }
