@@ -124,4 +124,16 @@ public sealed class ConformanceSelectionTests
         selection.ShouldBeOfType<ConformanceSelection.Invalid>()
             .Errors.ShouldAllBe(error => !error.Contains("KEYVALUE1", StringComparison.Ordinal));
     }
+
+    [Test]
+    public void A_real_server_selection_does_not_print_its_api_key()
+    {
+        var selection = ConformanceSelection.From(new Dictionary<string, string>
+        {
+            ["CTM_CONFORMANCE_ENDPOINT"] = "https://host1.test:8443/automation-api",
+            ["CTM_CONFORMANCE_API_KEY"] = "KEYVALUE1",
+        });
+
+        selection.ToString().ShouldNotContain("KEYVALUE1");
+    }
 }
