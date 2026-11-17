@@ -1,3 +1,4 @@
+using System.Text;
 using ControlM.Client.Operations;
 using ControlM.Simulator.Journal;
 using Microsoft.AspNetCore.Http;
@@ -19,15 +20,34 @@ internal sealed class JournalRecording(RequestJournal journal, TimeProvider time
 
         var slot = journal.Admit();
         var arrival = time.GetUtcNow();
+        var body = await ReadBodyAsync(request, context.RequestAborted);
         await next(context);
         journal.Record(slot, new JournalEntry(
             context.GetEndpoint()?.Metadata.GetMetadata<Operation>(),
             request.Method,
             request.Path.Value ?? string.Empty,
             QueryWithoutMark(request.QueryString),
+            HeadersAsReceived(request.Headers),
+            body,
             arrival,
             context.Response.StatusCode));
     }
+
+    // The body is buffered and rewound so the endpoint still reads all of it.
+    private static async Task<string> ReadBodyAsync(HttpRequest request, CancellationToken cancellationToken)
+    {
+        request.EnableBuffering();
+        using var reader = new StreamReader(request.Body, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, leaveOpen: true);
+        var body = await reader.ReadToEndAsync(cancellationToken);
+        request.Body.Position = 0;
+        return body;
+    }
+
+    private static Dictionary<string, string> HeadersAsReceived(IHeaderDictionary headers) =>
+        headers.ToDictionary(
+            header => header.Key,
+            header => string.Join(", ", header.Value.AsEnumerable()),
+            StringComparer.OrdinalIgnoreCase);
 
     private static string QueryWithoutMark(QueryString query) =>
         query.HasValue ? query.Value![1..] : string.Empty;
