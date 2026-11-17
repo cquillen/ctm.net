@@ -37,6 +37,8 @@ dotnet test --project tests/ControlM.Conformance.Tests
 
 Use `CTM_CONFORMANCE_API_KEY` instead of the user name and password to authenticate with an API key. Exactly one credential may be set.
 
+Variable names are matched regardless of case, so `ctm_conformance_endpoint` works too. Setting one variable under two spellings, such as `CTM_CONFORMANCE_PASSWORD` and `ctm_conformance_password`, is an error.
+
 - Simulator-only tests show as skipped.
 - Until certificate trust is configurable, the server's certificate must already be trusted by the machine.
 - Later tests order and deploy into the folder named by `CTM_CONFORMANCE_FOLDER` on the server and host named by `CTM_CONFORMANCE_SERVER` and `CTM_CONFORMANCE_HOST`. Point them at a folder that exists for this purpose.

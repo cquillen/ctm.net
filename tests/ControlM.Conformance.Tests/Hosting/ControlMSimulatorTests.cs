@@ -8,6 +8,7 @@ namespace ControlM.Conformance.Tests.Hosting;
 public sealed class ControlMSimulatorTests
 {
     [Test]
+    [Category(SimulatorOnlySkipAttribute.Category)]
     public async Task A_client_keeps_reaching_its_own_instance_after_another_is_disposed()
     {
         await using var survivor = await ControlMSimulator.StartAsync();
@@ -23,6 +24,7 @@ public sealed class ControlMSimulatorTests
     }
 
     [Test]
+    [Category(SimulatorOnlySkipAttribute.Category)]
     public async Task The_client_callback_runs_after_the_endpoint_is_set_so_it_can_replace_it()
     {
         await using var simulator = await ControlMSimulator.StartAsync();
