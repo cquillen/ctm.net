@@ -47,13 +47,20 @@ internal abstract record ConformanceSelection
 
     private static ConformanceCredential? ReadCredential(IReadOnlyDictionary<string, string> environment, List<string> errors)
     {
-        if (Read(environment, _apiKey) is { } key)
+        var key = Read(environment, _apiKey);
+        var username = Read(environment, _username);
+        var password = Read(environment, _password);
+        if (key is not null && (username is not null || password is not null))
+        {
+            errors.Add(Conflict(username, password));
+            return null;
+        }
+
+        if (key is not null)
         {
             return new ConformanceCredential.ApiKey(key);
         }
 
-        var username = Read(environment, _username);
-        var password = Read(environment, _password);
         if (username is not null && password is not null)
         {
             return new ConformanceCredential.SessionLogin(username, password);
@@ -68,6 +75,12 @@ internal abstract record ConformanceSelection
 
         errors.Add($"A credential is required: set {_apiKey}, or {_username} with {_password}.");
         return null;
+    }
+
+    private static string Conflict(string? username, string? password)
+    {
+        string?[] given = [username is null ? null : _username, password is null ? null : _password];
+        return $"{_apiKey} cannot be set with {string.Join(" and ", given.OfType<string>())}: set exactly one credential.";
     }
 
     private static string? Read(IReadOnlyDictionary<string, string> environment, string name)
