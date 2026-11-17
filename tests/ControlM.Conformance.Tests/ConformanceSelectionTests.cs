@@ -52,6 +52,21 @@ public sealed class ConformanceSelectionTests
     }
 
     [Test]
+    public void An_endpoint_with_a_user_name_and_password_selects_a_real_server_with_session_login()
+    {
+        var selection = ConformanceSelection.From(new Dictionary<string, string>
+        {
+            ["CTM_CONFORMANCE_ENDPOINT"] = "https://host1.test:8443/automation-api",
+            ["CTM_CONFORMANCE_USERNAME"] = "USER1",
+            ["CTM_CONFORMANCE_PASSWORD"] = "PASSWORD1",
+        });
+
+        selection.ShouldBe(new ConformanceSelection.RealServer(
+            new Uri("https://host1.test:8443/automation-api"),
+            new ConformanceCredential.SessionLogin("USER1", "PASSWORD1")));
+    }
+
+    [Test]
     public void An_endpoint_without_a_credential_is_invalid_naming_the_credential_variables()
     {
         var selection = ConformanceSelection.From(new Dictionary<string, string>

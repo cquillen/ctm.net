@@ -12,4 +12,9 @@ internal abstract record ConformanceCredential
 
         public override string ToString() => nameof(ApiKey);
     }
+
+    public sealed record SessionLogin(string Username, string Password) : ConformanceCredential
+    {
+        public override void Apply(ControlMClientOptions options) => throw new NotImplementedException();
+    }
 }
