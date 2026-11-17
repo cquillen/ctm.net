@@ -1,5 +1,6 @@
 using ControlM.Client.Authentication.ApiKey;
 using ControlM.Client.Operations;
+using ControlM.Simulator.Operations;
 using ControlM.Simulator.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -9,16 +10,12 @@ namespace ControlM.Simulator.Authentication.Logout;
 
 internal static class LogoutEndpoint
 {
-    private static Operation Operation => Operation.Logout;
-
     public static void Map(IEndpointRouteBuilder routes, CredentialStore credentials) =>
-        routes.MapMethods(
-            Operation.Path,
-            [Operation.Method.Method],
+        routes.MapOperation(
+            Operation.Logout,
             (HttpRequest request) => Answer(credentials.Logout(
                 request.Headers[ApiKeyScheme.HeaderName].FirstOrDefault(),
-                request.Headers.Authorization.FirstOrDefault())))
-            .WithMetadata(Operation);
+                request.Headers.Authorization.FirstOrDefault())));
 
     private static IResult Answer(LogoutOutcome outcome)
     {
