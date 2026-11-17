@@ -15,25 +15,45 @@ internal abstract record ConformanceSelection
             return new Simulator();
         }
 
-        var endpoint = Read(environment, _endpoint);
-        var key = Read(environment, _apiKey);
-        if (endpoint is not null && key is not null)
+        List<string> errors = [];
+        var endpoint = ReadEndpoint(environment, errors);
+        var credential = ReadCredential(environment, errors);
+        if (endpoint is null || credential is null)
         {
-            return new RealServer(new Uri(endpoint), new ConformanceCredential.ApiKey(key));
+            return new Invalid(errors);
         }
 
-        List<string> errors = [];
-        if (endpoint is null)
+        return new RealServer(endpoint, credential);
+    }
+
+    private static Uri? ReadEndpoint(IReadOnlyDictionary<string, string> environment, List<string> errors)
+    {
+        var value = Read(environment, _endpoint);
+        if (value is null)
         {
             errors.Add($"{_endpoint} is required when any {_prefix} variable is set.");
+            return null;
         }
 
-        if (key is null)
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var endpoint)
+            || (endpoint.Scheme != Uri.UriSchemeHttp && endpoint.Scheme != Uri.UriSchemeHttps))
         {
-            errors.Add($"A credential is required: set {_apiKey}, or {_username} with {_password}.");
+            errors.Add($"{_endpoint} must be an absolute http or https URI including /automation-api.");
+            return null;
         }
 
-        return new Invalid(errors);
+        return endpoint;
+    }
+
+    private static ConformanceCredential.ApiKey? ReadCredential(IReadOnlyDictionary<string, string> environment, List<string> errors)
+    {
+        if (Read(environment, _apiKey) is { } key)
+        {
+            return new ConformanceCredential.ApiKey(key);
+        }
+
+        errors.Add($"A credential is required: set {_apiKey}, or {_username} with {_password}.");
+        return null;
     }
 
     private static string? Read(IReadOnlyDictionary<string, string> environment, string name)
