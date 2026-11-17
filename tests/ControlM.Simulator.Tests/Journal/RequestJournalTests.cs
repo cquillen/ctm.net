@@ -1,3 +1,4 @@
+using System.Net;
 using ControlM.Client.Operations;
 using ControlM.Simulator.Hosting;
 using Microsoft.Extensions.Time.Testing;
@@ -58,6 +59,23 @@ public sealed class RequestJournalTests
     }
 
     [Test]
+    public async Task A_request_answered_after_a_later_one_still_comes_first()
+    {
+        var clock = new ClockThatSignalsItsFirstReading(_arrival);
+        await using var simulator = await ControlMSimulator.StartAsync(o => o.TimeProvider = clock);
+        using var http = simulator.CreateHttpClient();
+        var heldBody = new BodyHeldUntilReleased();
+
+        var first = http.PostAsync(new Uri("/automation-api/no/such/path?request=FIRST", UriKind.Relative), heldBody);
+        await clock.FirstReading;
+        using var second = await http.GetAsync(new Uri("/automation-api/no/such/path?request=SECOND", UriKind.Relative));
+        heldBody.Release();
+        using var firstResponse = await first;
+
+        simulator.Journal.Entries.Select(entry => entry.Query).ShouldBe(["request=FIRST", "request=SECOND"]);
+    }
+
+    [Test]
     public async Task A_snapshot_does_not_change_when_a_later_request_arrives()
     {
         await using var simulator = await ControlMSimulator.StartAsync();
@@ -110,5 +128,39 @@ public sealed class RequestJournalTests
         using var logout = await http.PostAsync(new Uri("/automation-api/session/logout", UriKind.Relative), null);
 
         simulator.Journal.Entries.Select(entry => entry.Operation).ShouldBe([Operation.Login, Operation.Logout]);
+    }
+
+    // The journal reads the clock when a request arrives, so the first reading shows the first request has arrived.
+    private sealed class ClockThatSignalsItsFirstReading(DateTimeOffset now) : TimeProvider
+    {
+        private readonly TaskCompletionSource _firstReading = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task FirstReading => _firstReading.Task;
+
+        public override DateTimeOffset GetUtcNow()
+        {
+            _firstReading.TrySetResult();
+            return now;
+        }
+    }
+
+    // A body the client starts sending only when the test releases it, so the request stays unanswered until then.
+    private sealed class BodyHeldUntilReleased : HttpContent
+    {
+        private readonly TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public void Release() => _released.TrySetResult();
+
+        protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+        {
+            await _released.Task;
+            await stream.WriteAsync("FIRST"u8.ToArray());
+        }
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
     }
 }
