@@ -66,7 +66,7 @@ Some areas hold what every operation shares:
 | `Serialization` | Client | The one set of JSON options for every request and response body. |
 | `Serialization` | Simulator | The one set of JSON options for every response body the simulator writes. |
 | `Operations` | Client | The operation table: the name, method and path of every implemented operation, and how a path relative to the endpoint becomes a request URL. |
-| `Operations` | Simulator | The known operations the simulator does not implement and their 501 responses, the 404 for an unknown operation, and the 405 for a wrong method on a real path. |
+| `Operations` | Simulator | Mapping an implemented operation's endpoint at its method and path with its `Operation` attached, the known operations the simulator does not implement and their 501 responses, the 404 for an unknown operation, and the 405 for a wrong method on a real path. |
 | `Errors` | Client | The `ErrorList` envelope and the exceptions it maps to. |
 | `Errors` | Simulator | Building the `ErrorList` envelope as data, with the client's types. The endpoint that answers writes it. |
 | `Tls` | Client | Per-environment certificate trust. |
@@ -343,7 +343,7 @@ The journal holds every request the simulator receives, including one refused fo
 - Headers and body are kept as received, credentials and passwords included. Every credential the simulator accepts is one a test seeded, and a test may assert which one was sent. Capture, which writes to disk, is what sanitizes.
 - A path is under `/__sim/` when its first segment is `__sim`, compared without regard to case, as ASP.NET Core compares route segments; `/__sim` itself is left out too, and `/__simulator` is journaled. `Unmatched` is a snapshot in arrival order, as `Entries` is.
 - The journal is unbounded; `sim.Reset()` empties it.
-- The journal model is in the `Journal` area and does not depend on ASP.NET Core. `Hosting` feeds it from a middleware that runs after routing and around every endpoint and filter. Each endpoint carries its `Operation` as endpoint metadata.
+- The journal model is in the `Journal` area and does not depend on ASP.NET Core. `Hosting` feeds it from a middleware that runs after routing and around every endpoint and filter. Each endpoint carries its `Operation` as endpoint metadata, attached by the one helper in `Operations` that maps an implemented operation.
 - How a request answered by the named 501 is shown is decided with known operations.
 
 ### 5.2 In-process use
