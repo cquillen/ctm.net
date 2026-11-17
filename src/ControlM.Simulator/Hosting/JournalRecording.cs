@@ -20,18 +20,31 @@ internal sealed class JournalRecording(RequestJournal journal, TimeProvider time
 
         var slot = journal.Admit();
         var arrival = time.GetUtcNow();
-        var body = await ReadBodyAsync(request, context.RequestAborted);
-        await next(context);
-        journal.Record(slot, new JournalEntry(
-            context.GetEndpoint()?.Metadata.GetMetadata<Operation>(),
-            request.Method,
-            request.Path.Value ?? string.Empty,
-            QueryWithoutMark(request.QueryString),
-            HeadersAsReceived(request.Headers),
-            body,
-            arrival,
-            context.Response.StatusCode));
+        var body = string.Empty;
+        var answered = false;
+        try
+        {
+            body = await ReadBodyAsync(request, context.RequestAborted);
+            await next(context);
+            answered = true;
+        }
+        finally
+        {
+            journal.Record(slot, new JournalEntry(
+                context.GetEndpoint()?.Metadata.GetMetadata<Operation>(),
+                request.Method,
+                request.Path.Value ?? string.Empty,
+                QueryWithoutMark(request.QueryString),
+                HeadersAsReceived(request.Headers),
+                body,
+                arrival,
+                StatusSent(context.Response, answered)));
+        }
     }
+
+    // An exception that escapes before the response starts leaves the answer, if any, to the host, not the simulator.
+    private static int? StatusSent(HttpResponse response, bool answered) =>
+        answered || response.HasStarted ? response.StatusCode : null;
 
     // The body is buffered and rewound so the endpoint still reads all of it.
     private static async Task<string> ReadBodyAsync(HttpRequest request, CancellationToken cancellationToken)
