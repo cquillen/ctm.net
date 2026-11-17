@@ -36,8 +36,13 @@ internal abstract record ConformanceSelection
         return new Invalid(errors);
     }
 
-    private static string? Read(IReadOnlyDictionary<string, string> environment, string name) =>
-        environment.FirstOrDefault(variable => string.Equals(variable.Key, name, StringComparison.OrdinalIgnoreCase)).Value;
+    private static string? Read(IReadOnlyDictionary<string, string> environment, string name)
+    {
+        var value = environment
+            .FirstOrDefault(variable => string.Equals(variable.Key, name, StringComparison.OrdinalIgnoreCase))
+            .Value;
+        return string.IsNullOrWhiteSpace(value) ? null : value;
+    }
 
     public sealed record Simulator : ConformanceSelection;
 
