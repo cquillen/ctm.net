@@ -64,4 +64,18 @@ public sealed class ConformanceSelectionTests
         error.ShouldContain("CTM_CONFORMANCE_USERNAME");
         error.ShouldContain("CTM_CONFORMANCE_PASSWORD");
     }
+
+    [Test]
+    public void Variable_names_are_matched_regardless_of_case()
+    {
+        var selection = ConformanceSelection.From(new Dictionary<string, string>
+        {
+            ["ctm_conformance_endpoint"] = "https://host1.test:8443/automation-api",
+            ["Ctm_Conformance_Api_Key"] = "APIKEY1",
+        });
+
+        selection.ShouldBe(new ConformanceSelection.RealServer(
+            new Uri("https://host1.test:8443/automation-api"),
+            new ConformanceCredential.ApiKey("APIKEY1")));
+    }
 }
