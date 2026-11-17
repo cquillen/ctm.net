@@ -22,10 +22,9 @@ internal sealed class ConformanceTarget : IAsyncDisposable
 
     public IControlMClient Client { get; }
 
-    public static Task<ConformanceTarget> StartAsync() => StartAsync(configure: null);
+    public static Task<ConformanceTarget> StartAsync() => StartAsync(chooseCredential: null);
 
-    // The callback chooses the credential in place of the one the variables select.
-    public static async Task<ConformanceTarget> StartAsync(Action<ControlMClientOptions>? configure)
+    public static async Task<ConformanceTarget> StartAsync(Action<ControlMClientOptions>? chooseCredential)
     {
         if (Selection is ConformanceSelection.Invalid invalid)
         {
@@ -35,23 +34,23 @@ internal sealed class ConformanceTarget : IAsyncDisposable
 
         if (Selection is ConformanceSelection.RealServer realServer)
         {
-            return ConnectTo(realServer.Endpoint, configure ?? realServer.Credential.Apply);
+            return ConnectTo(realServer.Endpoint, chooseCredential ?? realServer.Credential.Apply);
         }
 
         var simulator = await ControlMSimulator.StartAsync();
-        var client = configure is null ? simulator.CreateClient() : simulator.CreateClient(configure);
+        var client = chooseCredential is null ? simulator.CreateClient() : simulator.CreateClient(chooseCredential);
         return new ConformanceTarget(client, simulator);
     }
 
     public ValueTask DisposeAsync() => _owner.DisposeAsync();
 
-    private static ConformanceTarget ConnectTo(Uri endpoint, Action<ControlMClientOptions> configure)
+    private static ConformanceTarget ConnectTo(Uri endpoint, Action<ControlMClientOptions> applyCredential)
     {
         var services = new ServiceCollection();
         services.AddControlMClient(o =>
         {
             o.Endpoint = endpoint;
-            configure(o);
+            applyCredential(o);
         });
         var provider = services.BuildServiceProvider();
         return new ConformanceTarget(provider.GetRequiredService<IControlMClient>(), provider);
