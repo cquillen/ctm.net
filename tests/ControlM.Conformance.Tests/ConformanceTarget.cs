@@ -22,7 +22,10 @@ internal sealed class ConformanceTarget : IAsyncDisposable
 
     public IControlMClient Client { get; }
 
-    public static async Task<ConformanceTarget> StartAsync()
+    public static Task<ConformanceTarget> StartAsync() => StartAsync(configure: null);
+
+    // The callback chooses the credential in place of the one the variables select.
+    public static async Task<ConformanceTarget> StartAsync(Action<ControlMClientOptions>? configure)
     {
         if (Selection is ConformanceSelection.Invalid invalid)
         {
@@ -32,25 +35,23 @@ internal sealed class ConformanceTarget : IAsyncDisposable
 
         if (Selection is ConformanceSelection.RealServer realServer)
         {
-            return ConnectTo(realServer);
+            return ConnectTo(realServer.Endpoint, configure ?? realServer.Credential.Apply);
         }
 
         var simulator = await ControlMSimulator.StartAsync();
-        return new ConformanceTarget(simulator.CreateClient(), simulator);
+        var client = configure is null ? simulator.CreateClient() : simulator.CreateClient(configure);
+        return new ConformanceTarget(client, simulator);
     }
-
-    public static Task<ConformanceTarget> StartAsync(Action<ControlMClientOptions> configure) =>
-        throw new NotImplementedException();
 
     public ValueTask DisposeAsync() => _owner.DisposeAsync();
 
-    private static ConformanceTarget ConnectTo(ConformanceSelection.RealServer realServer)
+    private static ConformanceTarget ConnectTo(Uri endpoint, Action<ControlMClientOptions> configure)
     {
         var services = new ServiceCollection();
         services.AddControlMClient(o =>
         {
-            o.Endpoint = realServer.Endpoint;
-            realServer.Credential.Apply(o);
+            o.Endpoint = endpoint;
+            configure(o);
         });
         var provider = services.BuildServiceProvider();
         return new ConformanceTarget(provider.GetRequiredService<IControlMClient>(), provider);
