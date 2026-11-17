@@ -10,9 +10,15 @@ internal abstract record ConformanceSelection
 
     public static ConformanceSelection From(IReadOnlyDictionary<string, string> environment)
     {
-        if (!environment.Keys.Any(name => name.StartsWith(_prefix, StringComparison.OrdinalIgnoreCase)))
+        if (!environment.Keys.Any(IsPrefixed))
         {
             return new Simulator();
+        }
+
+        var duplicated = DuplicatedNames(environment);
+        if (duplicated.Count > 0)
+        {
+            return new Invalid(duplicated);
         }
 
         List<string> errors = [];
@@ -25,6 +31,16 @@ internal abstract record ConformanceSelection
 
         return new RealServer(endpoint, credential);
     }
+
+    private static bool IsPrefixed(string name) => name.StartsWith(_prefix, StringComparison.OrdinalIgnoreCase);
+
+    private static List<string> DuplicatedNames(IReadOnlyDictionary<string, string> environment) =>
+        environment.Keys
+            .Where(IsPrefixed)
+            .GroupBy(name => name.ToUpperInvariant())
+            .Where(spellings => spellings.Count() > 1)
+            .Select(spellings => $"{spellings.Key} is set under more than one spelling: {string.Join(", ", spellings.Order(StringComparer.Ordinal))}.")
+            .ToList();
 
     private static Uri? ReadEndpoint(IReadOnlyDictionary<string, string> environment, List<string> errors)
     {
