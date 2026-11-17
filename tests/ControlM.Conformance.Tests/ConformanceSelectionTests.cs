@@ -91,6 +91,29 @@ public sealed class ConformanceSelectionTests
     }
 
     [Test]
+    [Arguments("CTM_CONFORMANCE_USERNAME")]
+    [Arguments("CTM_CONFORMANCE_PASSWORD")]
+    [Arguments("CTM_CONFORMANCE_USERNAME", "CTM_CONFORMANCE_PASSWORD")]
+    public void An_api_key_with_a_session_login_variable_is_invalid_naming_the_conflict(params string[] sessionVariables)
+    {
+        var environment = new Dictionary<string, string>
+        {
+            ["CTM_CONFORMANCE_ENDPOINT"] = "https://host1.test:8443/automation-api",
+            ["CTM_CONFORMANCE_API_KEY"] = "APIKEY1",
+        };
+        foreach (var name in sessionVariables)
+        {
+            environment[name] = "VALUE1";
+        }
+
+        var selection = ConformanceSelection.From(environment);
+
+        var error = selection.ShouldBeOfType<ConformanceSelection.Invalid>().Errors.ShouldHaveSingleItem();
+        error.ShouldContain("CTM_CONFORMANCE_API_KEY");
+        sessionVariables.ShouldAllBe(name => error.Contains(name, StringComparison.Ordinal));
+    }
+
+    [Test]
     public void An_endpoint_without_a_credential_is_invalid_naming_the_credential_variables()
     {
         var selection = ConformanceSelection.From(new Dictionary<string, string>
