@@ -50,4 +50,18 @@ public sealed class ConformanceSelectionTests
             new Uri("https://host1.test:8443/automation-api"),
             new ConformanceCredential.ApiKey("APIKEY1")));
     }
+
+    [Test]
+    public void An_endpoint_without_a_credential_is_invalid_naming_the_credential_variables()
+    {
+        var selection = ConformanceSelection.From(new Dictionary<string, string>
+        {
+            ["CTM_CONFORMANCE_ENDPOINT"] = "https://host1.test:8443/automation-api",
+        });
+
+        var error = selection.ShouldBeOfType<ConformanceSelection.Invalid>().Errors.ShouldHaveSingleItem();
+        error.ShouldContain("CTM_CONFORMANCE_API_KEY");
+        error.ShouldContain("CTM_CONFORMANCE_USERNAME");
+        error.ShouldContain("CTM_CONFORMANCE_PASSWORD");
+    }
 }
