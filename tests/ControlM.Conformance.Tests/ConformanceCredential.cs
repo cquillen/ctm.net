@@ -15,6 +15,6 @@ internal abstract record ConformanceCredential
 
     public sealed record SessionLogin(string Username, string Password) : ConformanceCredential
     {
-        public override void Apply(ControlMClientOptions options) => throw new NotImplementedException();
+        public override void Apply(ControlMClientOptions options) => options.UseSessionLogin(Username, Password);
     }
 }

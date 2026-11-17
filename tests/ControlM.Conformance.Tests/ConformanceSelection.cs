@@ -45,11 +45,16 @@ internal abstract record ConformanceSelection
         return endpoint;
     }
 
-    private static ConformanceCredential.ApiKey? ReadCredential(IReadOnlyDictionary<string, string> environment, List<string> errors)
+    private static ConformanceCredential? ReadCredential(IReadOnlyDictionary<string, string> environment, List<string> errors)
     {
         if (Read(environment, _apiKey) is { } key)
         {
             return new ConformanceCredential.ApiKey(key);
+        }
+
+        if (Read(environment, _username) is { } username && Read(environment, _password) is { } password)
+        {
+            return new ConformanceCredential.SessionLogin(username, password);
         }
 
         errors.Add($"A credential is required: set {_apiKey}, or {_username} with {_password}.");
