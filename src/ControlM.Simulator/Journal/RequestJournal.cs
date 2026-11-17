@@ -9,13 +9,15 @@ namespace ControlM.Simulator.Journal;
 public sealed class RequestJournal
 {
     private readonly Lock _lock = new();
+    private readonly TimeProvider _time;
 
     // One slot per request, taken when it arrives and filled once it is answered, so the order is arrival order
     // even when a later request is answered first.
     private readonly List<JournalEntry?> _slots = [];
 
-    internal RequestJournal()
+    internal RequestJournal(TimeProvider time)
     {
+        _time = time;
     }
 
     /// <summary>
@@ -47,12 +49,13 @@ public sealed class RequestJournal
     /// </summary>
     public IReadOnlyList<JournalEntry> Unmatched => [.. Entries.Where(entry => entry.Operation is null)];
 
-    internal int Admit()
+    // The time is read under the lock that assigns the slot, so slot order and time order cannot disagree.
+    internal (int Slot, DateTimeOffset Arrival) Admit()
     {
         lock (_lock)
         {
             _slots.Add(null);
-            return _slots.Count - 1;
+            return (_slots.Count - 1, _time.GetUtcNow());
         }
     }
 

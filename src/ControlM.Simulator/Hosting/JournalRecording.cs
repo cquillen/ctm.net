@@ -7,7 +7,7 @@ namespace ControlM.Simulator.Hosting;
 
 // Runs after routing, to read the matched endpoint's operation, and around every endpoint and endpoint filter, to see
 // the status code each one answers.
-internal sealed class JournalRecording(RequestJournal journal, TimeProvider time)
+internal sealed class JournalRecording(RequestJournal journal)
 {
     public async Task InvokeAsync(HttpContext context, RequestDelegate next)
     {
@@ -18,8 +18,7 @@ internal sealed class JournalRecording(RequestJournal journal, TimeProvider time
             return;
         }
 
-        var slot = journal.Admit();
-        var arrival = time.GetUtcNow();
+        var (slot, arrival) = journal.Admit();
         var body = string.Empty;
         var answered = false;
         try
