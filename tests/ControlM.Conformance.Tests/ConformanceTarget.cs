@@ -1,6 +1,7 @@
 using System.Collections;
 using ControlM.Client;
 using ControlM.Simulator.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ControlM.Conformance.Tests;
 
@@ -9,28 +10,47 @@ internal sealed class ConformanceTarget : IAsyncDisposable
     private static readonly Lazy<ConformanceSelection> _selection =
         new(() => ConformanceSelection.From(ReadEnvironment()));
 
-    private readonly ControlMSimulator _simulator;
+    private readonly IAsyncDisposable _owner;
 
-    private ConformanceTarget(ControlMSimulator simulator)
+    private ConformanceTarget(IControlMClient client, IAsyncDisposable owner)
     {
-        _simulator = simulator;
-        Client = simulator.CreateClient();
+        Client = client;
+        _owner = owner;
     }
 
     public IControlMClient Client { get; }
 
     public static async Task<ConformanceTarget> StartAsync()
     {
-        if (_selection.Value is ConformanceSelection.Invalid invalid)
+        var selection = _selection.Value;
+        if (selection is ConformanceSelection.Invalid invalid)
         {
             throw new InvalidOperationException(
                 $"The conformance target is invalid:{Environment.NewLine}{string.Join(Environment.NewLine, invalid.Errors)}");
         }
 
-        return new ConformanceTarget(await ControlMSimulator.StartAsync());
+        if (selection is ConformanceSelection.RealServer realServer)
+        {
+            return ConnectTo(realServer);
+        }
+
+        var simulator = await ControlMSimulator.StartAsync();
+        return new ConformanceTarget(simulator.CreateClient(), simulator);
     }
 
-    public ValueTask DisposeAsync() => _simulator.DisposeAsync();
+    public ValueTask DisposeAsync() => _owner.DisposeAsync();
+
+    private static ConformanceTarget ConnectTo(ConformanceSelection.RealServer realServer)
+    {
+        var services = new ServiceCollection();
+        services.AddControlMClient(o =>
+        {
+            o.Endpoint = realServer.Endpoint;
+            realServer.Credential.Apply(o);
+        });
+        var provider = services.BuildServiceProvider();
+        return new ConformanceTarget(provider.GetRequiredService<IControlMClient>(), provider);
+    }
 
     private static Dictionary<string, string> ReadEnvironment() =>
         Environment.GetEnvironmentVariables()
