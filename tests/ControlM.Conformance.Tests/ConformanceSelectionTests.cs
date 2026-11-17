@@ -111,4 +111,17 @@ public sealed class ConformanceSelectionTests
         selection.ShouldBeOfType<ConformanceSelection.Invalid>()
             .Errors.ShouldHaveSingleItem().ShouldContain("CTM_CONFORMANCE_ENDPOINT");
     }
+
+    [Test]
+    public void No_error_contains_the_api_key()
+    {
+        var selection = ConformanceSelection.From(new Dictionary<string, string>
+        {
+            ["CTM_CONFORMANCE_ENDPOINT"] = "ftp://host1.test/automation-api",
+            ["CTM_CONFORMANCE_API_KEY"] = "KEYVALUE1",
+        });
+
+        selection.ShouldBeOfType<ConformanceSelection.Invalid>()
+            .Errors.ShouldAllBe(error => !error.Contains("KEYVALUE1", StringComparison.Ordinal));
+    }
 }
