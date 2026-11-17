@@ -188,6 +188,21 @@ public sealed class ConformanceSelectionTests
     }
 
     [Test]
+    public void No_error_contains_the_password()
+    {
+        var selection = ConformanceSelection.From(new Dictionary<string, string>
+        {
+            ["CTM_CONFORMANCE_ENDPOINT"] = "ftp://host1.test/automation-api",
+            ["CTM_CONFORMANCE_API_KEY"] = "APIKEY1",
+            ["CTM_CONFORMANCE_USERNAME"] = "USER1",
+            ["CTM_CONFORMANCE_PASSWORD"] = "PASSWORDVALUE1",
+        });
+
+        selection.ShouldBeOfType<ConformanceSelection.Invalid>()
+            .Errors.ShouldAllBe(error => !error.Contains("PASSWORDVALUE1", StringComparison.Ordinal));
+    }
+
+    [Test]
     public void A_real_server_selection_does_not_print_its_api_key()
     {
         var selection = ConformanceSelection.From(new Dictionary<string, string>
