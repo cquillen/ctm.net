@@ -35,8 +35,7 @@ public sealed class RequestJournal
     }
 
     /// <summary>
-    /// Counts every request routed to <paramref name="operation"/>, whatever it was answered, so a request refused for
-    /// its credential counts too.
+    /// A request refused for its credential counts too.
     /// </summary>
     /// <param name="operation">The operation, from the client's operation table.</param>
     /// <returns>The number of requests routed to the operation so far.</returns>

@@ -5,8 +5,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace ControlM.Simulator.Hosting;
 
-// Runs after routing, to read the matched endpoint's operation, and around every endpoint and endpoint filter, to see
-// the status code each one answers.
+// Where this middleware sits in the pipeline, and why: requirements section 5.1.
 internal sealed class JournalRecording(RequestJournal journal)
 {
     public async Task InvokeAsync(HttpContext context, RequestDelegate next)
@@ -33,7 +32,7 @@ internal sealed class JournalRecording(RequestJournal journal)
                 context.GetEndpoint()?.Metadata.GetMetadata<Operation>(),
                 request.Method,
                 request.Path.Value ?? string.Empty,
-                QueryWithoutMark(request.QueryString),
+                QueryAfterQuestionMark(request.QueryString),
                 HeadersAsReceived(request.Headers),
                 body,
                 arrival,
@@ -61,6 +60,6 @@ internal sealed class JournalRecording(RequestJournal journal)
             header => string.Join(", ", header.Value.AsEnumerable()),
             StringComparer.OrdinalIgnoreCase);
 
-    private static string QueryWithoutMark(QueryString query) =>
+    private static string QueryAfterQuestionMark(QueryString query) =>
         query.HasValue ? query.Value![1..] : string.Empty;
 }
