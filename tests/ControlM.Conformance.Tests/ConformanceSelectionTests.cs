@@ -36,4 +36,18 @@ public sealed class ConformanceSelectionTests
         selection.ShouldBeOfType<ConformanceSelection.Invalid>()
             .Errors.ShouldHaveSingleItem().ShouldContain("CTM_CONFORMANCE_ENDPOINT");
     }
+
+    [Test]
+    public void An_endpoint_with_an_api_key_selects_a_real_server_with_that_key()
+    {
+        var selection = ConformanceSelection.From(new Dictionary<string, string>
+        {
+            ["CTM_CONFORMANCE_ENDPOINT"] = "https://host1.test:8443/automation-api",
+            ["CTM_CONFORMANCE_API_KEY"] = "APIKEY1",
+        });
+
+        selection.ShouldBe(new ConformanceSelection.RealServer(
+            new Uri("https://host1.test:8443/automation-api"),
+            new ConformanceCredential.ApiKey("APIKEY1")));
+    }
 }

@@ -16,5 +16,7 @@ internal abstract record ConformanceSelection
 
     public sealed record Simulator : ConformanceSelection;
 
+    public sealed record RealServer(Uri Endpoint, ConformanceCredential Credential) : ConformanceSelection;
+
     public sealed record Invalid(IReadOnlyList<string> Errors) : ConformanceSelection;
 }
