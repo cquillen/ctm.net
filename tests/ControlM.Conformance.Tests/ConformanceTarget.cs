@@ -18,18 +18,19 @@ internal sealed class ConformanceTarget : IAsyncDisposable
         _owner = owner;
     }
 
+    public static ConformanceSelection Selection => _selection.Value;
+
     public IControlMClient Client { get; }
 
     public static async Task<ConformanceTarget> StartAsync()
     {
-        var selection = _selection.Value;
-        if (selection is ConformanceSelection.Invalid invalid)
+        if (Selection is ConformanceSelection.Invalid invalid)
         {
             throw new InvalidOperationException(
                 $"The conformance target is invalid:{Environment.NewLine}{string.Join(Environment.NewLine, invalid.Errors)}");
         }
 
-        if (selection is ConformanceSelection.RealServer realServer)
+        if (Selection is ConformanceSelection.RealServer realServer)
         {
             return ConnectTo(realServer);
         }
