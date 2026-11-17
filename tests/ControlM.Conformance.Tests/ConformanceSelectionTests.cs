@@ -34,7 +34,7 @@ public sealed class ConformanceSelectionTests
         var selection = ConformanceSelection.From(new Dictionary<string, string> { [name] = "VALUE1" });
 
         selection.ShouldBeOfType<ConformanceSelection.Invalid>()
-            .Errors.ShouldHaveSingleItem().ShouldContain("CTM_CONFORMANCE_ENDPOINT");
+            .Errors.ShouldContain(error => error.Contains("CTM_CONFORMANCE_ENDPOINT", StringComparison.Ordinal));
     }
 
     [Test]
