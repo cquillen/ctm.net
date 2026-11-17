@@ -52,9 +52,18 @@ internal abstract record ConformanceSelection
             return new ConformanceCredential.ApiKey(key);
         }
 
-        if (Read(environment, _username) is { } username && Read(environment, _password) is { } password)
+        var username = Read(environment, _username);
+        var password = Read(environment, _password);
+        if (username is not null && password is not null)
         {
             return new ConformanceCredential.SessionLogin(username, password);
+        }
+
+        if (username is not null || password is not null)
+        {
+            var (missing, given) = username is null ? (_username, _password) : (_password, _username);
+            errors.Add($"{missing} is required with {given}.");
+            return null;
         }
 
         errors.Add($"A credential is required: set {_apiKey}, or {_username} with {_password}.");
