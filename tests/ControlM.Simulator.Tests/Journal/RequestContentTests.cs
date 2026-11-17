@@ -7,14 +7,12 @@ namespace ControlM.Simulator.Tests.Journal;
 
 public sealed class RequestContentTests
 {
-    private static Uri GetServers => new("/automation-api/config/servers", UriKind.Relative);
-
     [Test]
     public async Task The_credential_headers_are_kept_as_sent_and_read_back_with_any_casing()
     {
         await using var simulator = await ControlMSimulator.StartAsync();
         using var http = simulator.CreateHttpClient();
-        using var request = new HttpRequestMessage(HttpMethod.Get, GetServers);
+        using var request = new HttpRequestMessage(HttpMethod.Get, RequestUris.GetServers);
         request.Headers.Add("x-api-key", "APIKEY1");
         request.Headers.TryAddWithoutValidation("Authorization", "Bearer TOKEN1");
 
@@ -30,7 +28,7 @@ public sealed class RequestContentTests
     {
         await using var simulator = await ControlMSimulator.StartAsync();
         using var http = simulator.CreateHttpClient();
-        using var request = new HttpRequestMessage(HttpMethod.Get, GetServers);
+        using var request = new HttpRequestMessage(HttpMethod.Get, RequestUris.GetServers);
         request.Headers.Add("X-Correlation", ["CORRELATION1", "CORRELATION2"]);
 
         using var response = await http.SendAsync(request);
@@ -74,7 +72,7 @@ public sealed class RequestContentTests
         await using var simulator = await ControlMSimulator.StartAsync();
         using var http = simulator.CreateHttpClient();
 
-        using var response = await http.GetAsync(GetServers);
+        using var response = await http.GetAsync(RequestUris.GetServers);
 
         simulator.Journal.Entries.ShouldHaveSingleItem().Body.ShouldBeEmpty();
     }

@@ -10,8 +10,6 @@ public sealed class RequestJournalTests
 {
     private static readonly DateTimeOffset _arrival = new(2026, 3, 14, 9, 26, 53, TimeSpan.Zero);
 
-    private static Uri GetServers => new("/automation-api/config/servers", UriKind.Relative);
-
     [Test]
     public async Task An_accepted_request_is_one_entry_with_its_operation_method_path_query_and_status()
     {
@@ -40,7 +38,7 @@ public sealed class RequestJournalTests
         await using var simulator = await ControlMSimulator.StartAsync(o => o.TimeProvider = time);
         using var http = simulator.CreateHttpClient();
 
-        using var response = await http.GetAsync(GetServers);
+        using var response = await http.GetAsync(RequestUris.GetServers);
 
         simulator.Journal.Entries.ShouldHaveSingleItem().Time.ShouldBe(_arrival);
     }
@@ -80,10 +78,10 @@ public sealed class RequestJournalTests
     {
         await using var simulator = await ControlMSimulator.StartAsync();
         using var http = simulator.CreateHttpClient();
-        using var first = await http.GetAsync(GetServers);
+        using var first = await http.GetAsync(RequestUris.GetServers);
         var snapshot = simulator.Journal.Entries;
 
-        using var second = await http.GetAsync(GetServers);
+        using var second = await http.GetAsync(RequestUris.GetServers);
 
         snapshot.Count.ShouldBe(1);
     }
@@ -95,7 +93,7 @@ public sealed class RequestJournalTests
         await using var second = await ControlMSimulator.StartAsync();
         using var http = first.CreateHttpClient();
 
-        using var response = await http.GetAsync(GetServers);
+        using var response = await http.GetAsync(RequestUris.GetServers);
 
         first.Journal.Entries.Count.ShouldBe(1);
         second.Journal.Entries.ShouldBeEmpty();
@@ -108,12 +106,7 @@ public sealed class RequestJournalTests
         await using var simulator = await ControlMSimulator.StartAsync();
         using var http = simulator.CreateHttpClient();
 
-        var responses = await Task.WhenAll(Enumerable.Range(0, requests).Select(_ => Task.Run(() => http.GetAsync(GetServers))));
-
-        foreach (var response in responses)
-        {
-            response.Dispose();
-        }
+        await SendConcurrentlyAsync(http, requests);
 
         simulator.Journal.Entries.Count.ShouldBe(requests);
     }
@@ -126,12 +119,7 @@ public sealed class RequestJournalTests
         await using var simulator = await ControlMSimulator.StartAsync(o => o.TimeProvider = time);
         using var http = simulator.CreateHttpClient();
 
-        var responses = await Task.WhenAll(Enumerable.Range(0, requests).Select(_ => Task.Run(() => http.GetAsync(GetServers))));
-
-        foreach (var response in responses)
-        {
-            response.Dispose();
-        }
+        await SendConcurrentlyAsync(http, requests);
 
         var times = simulator.Journal.Entries.Select(entry => entry.Time).ToList();
         times.ShouldBe([.. times.Order()]);
@@ -147,6 +135,15 @@ public sealed class RequestJournalTests
         using var logout = await http.PostAsync(new Uri("/automation-api/session/logout", UriKind.Relative), null);
 
         simulator.Journal.Entries.Select(entry => entry.Operation).ShouldBe([Operation.Login, Operation.Logout]);
+    }
+
+    private static async Task SendConcurrentlyAsync(HttpClient http, int requests)
+    {
+        var responses = await Task.WhenAll(Enumerable.Range(0, requests).Select(_ => Task.Run(() => http.GetAsync(RequestUris.GetServers))));
+        foreach (var response in responses)
+        {
+            response.Dispose();
+        }
     }
 
     // The journal reads the clock when a request arrives, so the first reading shows the first request has arrived.

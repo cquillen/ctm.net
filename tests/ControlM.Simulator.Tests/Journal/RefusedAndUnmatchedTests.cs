@@ -12,7 +12,7 @@ public sealed class RefusedAndUnmatchedTests
         await using var simulator = await ControlMSimulator.StartAsync();
         using var http = simulator.CreateHttpClient();
 
-        using var response = await http.GetAsync(new Uri("/automation-api/config/servers", UriKind.Relative));
+        using var response = await http.GetAsync(RequestUris.GetServers);
 
         var entry = simulator.Journal.Entries.ShouldHaveSingleItem();
         entry.Operation.ShouldBe(Operation.GetServers);
@@ -53,7 +53,7 @@ public sealed class RefusedAndUnmatchedTests
     {
         await using var simulator = await ControlMSimulator.StartAsync();
         using var http = simulator.CreateHttpClient();
-        using var request = new HttpRequestMessage(HttpMethod.Patch, new Uri("/automation-api/config/servers", UriKind.Relative));
+        using var request = new HttpRequestMessage(HttpMethod.Patch, RequestUris.GetServers);
 
         using var response = await http.SendAsync(request);
 
