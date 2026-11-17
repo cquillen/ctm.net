@@ -66,9 +66,10 @@ internal abstract record ConformanceSelection
         var key = Read(environment, _apiKey);
         var username = Read(environment, _username);
         var password = Read(environment, _password);
-        if (key is not null && (username is not null || password is not null))
+        string[] sessionLoginSet = [.. NameIfSet(_username, username), .. NameIfSet(_password, password)];
+        if (key is not null && sessionLoginSet.Length > 0)
         {
-            errors.Add(Conflict(username, password));
+            errors.Add($"{_apiKey} cannot be set with {string.Join(" and ", sessionLoginSet)}: set exactly one credential.");
             return null;
         }
 
@@ -82,10 +83,10 @@ internal abstract record ConformanceSelection
             return new ConformanceCredential.SessionLogin(username, password);
         }
 
-        if (username is not null || password is not null)
+        if (sessionLoginSet.Length > 0)
         {
-            var (missing, given) = username is null ? (_username, _password) : (_password, _username);
-            errors.Add($"{missing} is required with {given}.");
+            var missing = username is null ? _username : _password;
+            errors.Add($"{missing} is required with {sessionLoginSet[0]}.");
             return null;
         }
 
@@ -93,11 +94,7 @@ internal abstract record ConformanceSelection
         return null;
     }
 
-    private static string Conflict(string? username, string? password)
-    {
-        string?[] given = [username is null ? null : _username, password is null ? null : _password];
-        return $"{_apiKey} cannot be set with {string.Join(" and ", given.OfType<string>())}: set exactly one credential.";
-    }
+    private static string[] NameIfSet(string name, string? value) => value is null ? [] : [name];
 
     private static string? Read(IReadOnlyDictionary<string, string> environment, string name)
     {
