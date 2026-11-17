@@ -39,6 +39,9 @@ internal sealed class ConformanceTarget : IAsyncDisposable
         return new ConformanceTarget(simulator.CreateClient(), simulator);
     }
 
+    public static Task<ConformanceTarget> StartAsync(Action<ControlMClientOptions> configure) =>
+        throw new NotImplementedException();
+
     public ValueTask DisposeAsync() => _owner.DisposeAsync();
 
     private static ConformanceTarget ConnectTo(ConformanceSelection.RealServer realServer)

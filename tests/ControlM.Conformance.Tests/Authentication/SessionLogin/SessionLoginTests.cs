@@ -38,11 +38,10 @@ public sealed class SessionLoginTests
     [Test]
     public async Task A_client_with_an_unknown_user_throws_the_authentication_exception_for_the_login()
     {
-        await using var simulator = await ControlMSimulator.StartAsync();
-        var client = simulator.CreateClient(o => o.UseSessionLogin("USER1", "PASSWORD1"));
+        await using var target = await ConformanceTarget.StartAsync(o => o.UseSessionLogin("USER1", "PASSWORD1"));
 
         var exception = await Should.ThrowAsync<ControlMAuthenticationException>(
-            () => client.SendAsync(Operation.GetServers.Method, Operation.GetServers.Path));
+            () => target.Client.SendAsync(Operation.GetServers.Method, Operation.GetServers.Path));
 
         exception.Operation.ShouldBe(Operation.Login);
     }
