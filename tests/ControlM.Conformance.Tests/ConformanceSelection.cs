@@ -10,13 +10,13 @@ internal abstract record ConformanceSelection
 
     public static ConformanceSelection From(IReadOnlyDictionary<string, string> environment)
     {
-        if (!environment.Keys.Any(name => name.StartsWith(_prefix, StringComparison.Ordinal)))
+        if (!environment.Keys.Any(name => name.StartsWith(_prefix, StringComparison.OrdinalIgnoreCase)))
         {
             return new Simulator();
         }
 
-        environment.TryGetValue(_endpoint, out var endpoint);
-        environment.TryGetValue(_apiKey, out var key);
+        var endpoint = Read(environment, _endpoint);
+        var key = Read(environment, _apiKey);
         if (endpoint is not null && key is not null)
         {
             return new RealServer(new Uri(endpoint), new ConformanceCredential.ApiKey(key));
@@ -35,6 +35,9 @@ internal abstract record ConformanceSelection
 
         return new Invalid(errors);
     }
+
+    private static string? Read(IReadOnlyDictionary<string, string> environment, string name) =>
+        environment.FirstOrDefault(variable => string.Equals(variable.Key, name, StringComparison.OrdinalIgnoreCase)).Value;
 
     public sealed record Simulator : ConformanceSelection;
 
