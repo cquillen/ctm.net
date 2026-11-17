@@ -213,4 +213,17 @@ public sealed class ConformanceSelectionTests
 
         selection.ToString().ShouldNotContain("KEYVALUE1");
     }
+
+    [Test]
+    public void A_real_server_selection_does_not_print_its_password()
+    {
+        var selection = ConformanceSelection.From(new Dictionary<string, string>
+        {
+            ["CTM_CONFORMANCE_ENDPOINT"] = "https://host1.test:8443/automation-api",
+            ["CTM_CONFORMANCE_USERNAME"] = "USER1",
+            ["CTM_CONFORMANCE_PASSWORD"] = "PASSWORDVALUE1",
+        });
+
+        selection.ToString().ShouldNotContain("PASSWORDVALUE1");
+    }
 }
