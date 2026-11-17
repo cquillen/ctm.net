@@ -6,7 +6,7 @@ namespace ControlM.Conformance.Tests;
 
 internal sealed class ConformanceTarget : IAsyncDisposable
 {
-    private static readonly Lazy<ConformanceSelection> Selection =
+    private static readonly Lazy<ConformanceSelection> _selection =
         new(() => ConformanceSelection.From(ReadEnvironment()));
 
     private readonly ControlMSimulator _simulator;
@@ -21,7 +21,7 @@ internal sealed class ConformanceTarget : IAsyncDisposable
 
     public static async Task<ConformanceTarget> StartAsync()
     {
-        if (Selection.Value is ConformanceSelection.Invalid invalid)
+        if (_selection.Value is ConformanceSelection.Invalid invalid)
         {
             throw new InvalidOperationException(
                 $"The conformance target is invalid:{Environment.NewLine}{string.Join(Environment.NewLine, invalid.Errors)}");
