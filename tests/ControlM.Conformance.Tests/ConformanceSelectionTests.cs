@@ -4,6 +4,8 @@ namespace ControlM.Conformance.Tests;
 
 public sealed class ConformanceSelectionTests
 {
+    private const string _endpoint = "https://host1.test:8443/automation-api";
+
     [Test]
     public void No_variables_select_the_simulator()
     {
@@ -18,14 +20,14 @@ public sealed class ConformanceSelectionTests
         var selection = ConformanceSelection.From(new Dictionary<string, string>
         {
             ["PATH"] = "/usr/bin",
-            ["CTM_ENDPOINT"] = "https://host1.test:8443/automation-api",
+            ["CTM_ENDPOINT"] = _endpoint,
         });
 
         selection.ShouldBeOfType<ConformanceSelection.Simulator>();
     }
 
     [Test]
-    [Arguments("CTM_CONFORMANCE_ENDPIONT")]
+    [Arguments("CTM_CONFORMANCE_ENDPIONT", DisplayName = "The deliberately misspelled $name is invalid, naming the endpoint")]
     [Arguments("CTM_CONFORMANCE_SERVER")]
     [Arguments("CTM_CONFORMANCE_HOST")]
     [Arguments("CTM_CONFORMANCE_FOLDER")]
@@ -42,12 +44,12 @@ public sealed class ConformanceSelectionTests
     {
         var selection = ConformanceSelection.From(new Dictionary<string, string>
         {
-            ["CTM_CONFORMANCE_ENDPOINT"] = "https://host1.test:8443/automation-api",
+            ["CTM_CONFORMANCE_ENDPOINT"] = _endpoint,
             ["CTM_CONFORMANCE_API_KEY"] = "APIKEY1",
         });
 
         selection.ShouldBe(new ConformanceSelection.RealServer(
-            new Uri("https://host1.test:8443/automation-api"),
+            new Uri(_endpoint),
             new ConformanceCredential.ApiKey("APIKEY1")));
     }
 
@@ -56,13 +58,13 @@ public sealed class ConformanceSelectionTests
     {
         var selection = ConformanceSelection.From(new Dictionary<string, string>
         {
-            ["CTM_CONFORMANCE_ENDPOINT"] = "https://host1.test:8443/automation-api",
+            ["CTM_CONFORMANCE_ENDPOINT"] = _endpoint,
             ["CTM_CONFORMANCE_USERNAME"] = "USER1",
             ["CTM_CONFORMANCE_PASSWORD"] = "PASSWORD1",
         });
 
         selection.ShouldBe(new ConformanceSelection.RealServer(
-            new Uri("https://host1.test:8443/automation-api"),
+            new Uri(_endpoint),
             new ConformanceCredential.SessionLogin("USER1", "PASSWORD1")));
     }
 
@@ -75,7 +77,7 @@ public sealed class ConformanceSelectionTests
     {
         var environment = new Dictionary<string, string>
         {
-            ["CTM_CONFORMANCE_ENDPOINT"] = "https://host1.test:8443/automation-api",
+            ["CTM_CONFORMANCE_ENDPOINT"] = _endpoint,
             [given] = "VALUE1",
         };
         if (blank is not null)
@@ -98,7 +100,7 @@ public sealed class ConformanceSelectionTests
     {
         var environment = new Dictionary<string, string>
         {
-            ["CTM_CONFORMANCE_ENDPOINT"] = "https://host1.test:8443/automation-api",
+            ["CTM_CONFORMANCE_ENDPOINT"] = _endpoint,
             ["CTM_CONFORMANCE_API_KEY"] = "APIKEY1",
         };
         foreach (var name in sessionVariables)
@@ -118,7 +120,7 @@ public sealed class ConformanceSelectionTests
     {
         var selection = ConformanceSelection.From(new Dictionary<string, string>
         {
-            ["CTM_CONFORMANCE_ENDPOINT"] = "https://host1.test:8443/automation-api",
+            ["CTM_CONFORMANCE_ENDPOINT"] = _endpoint,
         });
 
         var error = selection.ShouldBeOfType<ConformanceSelection.Invalid>().Errors.ShouldHaveSingleItem();
@@ -132,12 +134,12 @@ public sealed class ConformanceSelectionTests
     {
         var selection = ConformanceSelection.From(new Dictionary<string, string>
         {
-            ["ctm_conformance_endpoint"] = "https://host1.test:8443/automation-api",
+            ["ctm_conformance_endpoint"] = _endpoint,
             ["Ctm_Conformance_Api_Key"] = "APIKEY1",
         });
 
         selection.ShouldBe(new ConformanceSelection.RealServer(
-            new Uri("https://host1.test:8443/automation-api"),
+            new Uri(_endpoint),
             new ConformanceCredential.ApiKey("APIKEY1")));
     }
 
@@ -149,7 +151,7 @@ public sealed class ConformanceSelectionTests
     {
         var environment = new Dictionary<string, string>
         {
-            ["CTM_CONFORMANCE_ENDPOINT"] = "https://host1.test:8443/automation-api",
+            ["CTM_CONFORMANCE_ENDPOINT"] = _endpoint,
             ["CTM_CONFORMANCE_USERNAME"] = "USER1",
             ["CTM_CONFORMANCE_PASSWORD"] = "PASSWORDVALUE1",
         };
@@ -164,12 +166,12 @@ public sealed class ConformanceSelectionTests
 
     [Test]
     [Arguments("")]
-    [Arguments(" 	")]
+    [Arguments(" \t")]
     public void A_blank_api_key_counts_as_missing(string key)
     {
         var selection = ConformanceSelection.From(new Dictionary<string, string>
         {
-            ["CTM_CONFORMANCE_ENDPOINT"] = "https://host1.test:8443/automation-api",
+            ["CTM_CONFORMANCE_ENDPOINT"] = _endpoint,
             ["CTM_CONFORMANCE_API_KEY"] = key,
         });
 
@@ -228,7 +230,7 @@ public sealed class ConformanceSelectionTests
     {
         var selection = ConformanceSelection.From(new Dictionary<string, string>
         {
-            ["CTM_CONFORMANCE_ENDPOINT"] = "https://host1.test:8443/automation-api",
+            ["CTM_CONFORMANCE_ENDPOINT"] = _endpoint,
             ["CTM_CONFORMANCE_API_KEY"] = "KEYVALUE1",
         });
 
@@ -240,7 +242,7 @@ public sealed class ConformanceSelectionTests
     {
         var selection = ConformanceSelection.From(new Dictionary<string, string>
         {
-            ["CTM_CONFORMANCE_ENDPOINT"] = "https://host1.test:8443/automation-api",
+            ["CTM_CONFORMANCE_ENDPOINT"] = _endpoint,
             ["CTM_CONFORMANCE_USERNAME"] = "USER1",
             ["CTM_CONFORMANCE_PASSWORD"] = "PASSWORDVALUE1",
         });
