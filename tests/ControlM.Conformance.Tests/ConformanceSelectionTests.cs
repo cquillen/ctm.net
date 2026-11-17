@@ -13,6 +13,18 @@ public sealed class ConformanceSelectionTests
     }
 
     [Test]
+    public void Variables_without_the_prefix_are_ignored()
+    {
+        var selection = ConformanceSelection.From(new Dictionary<string, string>
+        {
+            ["PATH"] = "/usr/bin",
+            ["CTM_ENDPOINT"] = "https://host1.test:8443/automation-api",
+        });
+
+        selection.ShouldBeOfType<ConformanceSelection.Simulator>();
+    }
+
+    [Test]
     [Arguments("CTM_CONFORMANCE_ENDPIONT")]
     [Arguments("CTM_CONFORMANCE_SERVER")]
     [Arguments("CTM_CONFORMANCE_HOST")]
