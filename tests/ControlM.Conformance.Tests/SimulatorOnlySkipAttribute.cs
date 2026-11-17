@@ -14,4 +14,6 @@ internal sealed class SimulatorOnlySkipAttribute()
         Task.FromResult(
             context.TestDetails.Categories.Contains(Category)
             && ConformanceTarget.Selection is not ConformanceSelection.Simulator);
+
+    internal static string ReasonFor(ConformanceSelection selection) => throw new NotImplementedException();
 }
