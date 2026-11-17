@@ -17,11 +17,13 @@ internal sealed class ConformanceTarget : IAsyncDisposable
         Client = simulator.CreateClient();
     }
 
+    public static ConformanceSelection Selection => _selection.Value;
+
     public IControlMClient Client { get; }
 
     public static async Task<ConformanceTarget> StartAsync()
     {
-        if (_selection.Value is ConformanceSelection.Invalid invalid)
+        if (Selection is ConformanceSelection.Invalid invalid)
         {
             throw new InvalidOperationException(
                 $"The conformance target is invalid:{Environment.NewLine}{string.Join(Environment.NewLine, invalid.Errors)}");
