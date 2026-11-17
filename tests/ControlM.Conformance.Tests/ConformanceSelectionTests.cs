@@ -93,4 +93,22 @@ public sealed class ConformanceSelectionTests
         selection.ShouldBeOfType<ConformanceSelection.Invalid>()
             .Errors.ShouldHaveSingleItem().ShouldContain("CTM_CONFORMANCE_API_KEY");
     }
+
+    [Test]
+    [Arguments(" ")]
+    [Arguments("/automation-api")]
+    [Arguments("host1.test/automation-api")]
+    [Arguments("ftp://host1.test/automation-api")]
+    [Arguments("file:///automation-api")]
+    public void An_endpoint_that_is_not_an_absolute_http_uri_is_invalid_naming_the_endpoint(string endpoint)
+    {
+        var selection = ConformanceSelection.From(new Dictionary<string, string>
+        {
+            ["CTM_CONFORMANCE_ENDPOINT"] = endpoint,
+            ["CTM_CONFORMANCE_API_KEY"] = "APIKEY1",
+        });
+
+        selection.ShouldBeOfType<ConformanceSelection.Invalid>()
+            .Errors.ShouldHaveSingleItem().ShouldContain("CTM_CONFORMANCE_ENDPOINT");
+    }
 }
