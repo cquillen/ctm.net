@@ -119,6 +119,25 @@ public sealed class RequestJournalTests
     }
 
     [Test]
+    public async Task Concurrent_requests_have_times_in_the_order_of_their_entries()
+    {
+        const int requests = 1000;
+        var time = new FakeTimeProvider(_arrival) { AutoAdvanceAmount = TimeSpan.FromTicks(1) };
+        await using var simulator = await ControlMSimulator.StartAsync(o => o.TimeProvider = time);
+        using var http = simulator.CreateHttpClient();
+
+        var responses = await Task.WhenAll(Enumerable.Range(0, requests).Select(_ => Task.Run(() => http.GetAsync(GetServers))));
+
+        foreach (var response in responses)
+        {
+            response.Dispose();
+        }
+
+        var times = simulator.Journal.Entries.Select(entry => entry.Time).ToList();
+        times.ShouldBe([.. times.Order()]);
+    }
+
+    [Test]
     public async Task The_session_operations_are_recorded_with_their_operations()
     {
         await using var simulator = await ControlMSimulator.StartAsync();
