@@ -67,6 +67,30 @@ public sealed class ConformanceSelectionTests
     }
 
     [Test]
+    [Arguments("CTM_CONFORMANCE_USERNAME", "CTM_CONFORMANCE_PASSWORD", null)]
+    [Arguments("CTM_CONFORMANCE_PASSWORD", "CTM_CONFORMANCE_USERNAME", null)]
+    [Arguments("CTM_CONFORMANCE_USERNAME", "CTM_CONFORMANCE_PASSWORD", " ")]
+    [Arguments("CTM_CONFORMANCE_PASSWORD", "CTM_CONFORMANCE_USERNAME", "")]
+    public void Half_a_session_login_is_invalid_naming_the_missing_variable(string given, string missing, string? blank)
+    {
+        var environment = new Dictionary<string, string>
+        {
+            ["CTM_CONFORMANCE_ENDPOINT"] = "https://host1.test:8443/automation-api",
+            [given] = "VALUE1",
+        };
+        if (blank is not null)
+        {
+            environment[missing] = blank;
+        }
+
+        var selection = ConformanceSelection.From(environment);
+
+        var error = selection.ShouldBeOfType<ConformanceSelection.Invalid>().Errors.ShouldHaveSingleItem();
+        error.ShouldContain(missing);
+        error.ShouldNotContain("CTM_CONFORMANCE_API_KEY");
+    }
+
+    [Test]
     public void An_endpoint_without_a_credential_is_invalid_naming_the_credential_variables()
     {
         var selection = ConformanceSelection.From(new Dictionary<string, string>
